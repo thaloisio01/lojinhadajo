@@ -10,7 +10,7 @@ Aplicativo simples para controlar uma lojinha familiar pelo navegador do computa
 - Separa venda paga de venda que a pessoa vai pagar depois.
 - Guarda cliente, data da venda e data combinada para pagamento.
 - Mostra valores a receber e permite marcar como recebido.
-- Mostra resumo do dia, lucro, estoque investido e produtos acabando.
+- Mostra resumo do dia, resumo do mês, lucro, estoque investido e produtos acabando.
 - Exporta vendas em CSV e exporta/importa backup em JSON.
 
 ## Como abrir no computador
@@ -48,3 +48,4 @@ O app já está preparado para sincronizar em nuvem pelo Supabase, mas precisa d
 7. Publique no GitHub Pages e abra o mesmo link nos dois computadores.
 
 Quando a sincronização estiver funcionando, o topo do app mostra `Sincronizado`.
+
