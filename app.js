@@ -231,7 +231,7 @@ function renderProducts() {
   }
   els.productsTable.innerHTML = state.products.map(product => {
     const profit = product.price - product.cost;
-    const stockClass = product.stock <= product.minStock ? "badge late" : "badge paid";
+    const stockClass = product.stock < product.minStock ? "badge late" : "badge paid";
     return `
       <tr>
         <td><strong>${escapeHTML(product.name)}</strong></td>
@@ -403,7 +403,7 @@ function renderDashboard() {
   els.monthSalesCount.textContent = month.salesCount;
   els.monthPendingAmount.textContent = money(month.pendingTotal);
 
-  const lowStock = state.products.filter(product => product.stock <= product.minStock);
+  const lowStock = state.products.filter(product => product.stock < product.minStock);
   document.getElementById("lowStockList").innerHTML = lowStock.length ? lowStock.map(product => `
     <div class="list-item"><div><strong>${escapeHTML(product.name)}</strong><small>Comprar mais quando puder</small></div><span class="badge late">${product.stock}</span></div>
   `).join("") : "Nenhum produto acabando agora.";
@@ -850,6 +850,7 @@ if ("serviceWorker" in navigator) {
 
 if (sessionStorage.getItem(SESSION_KEY) === "sim") showApp();
 else showLogin();
+
 
 
 

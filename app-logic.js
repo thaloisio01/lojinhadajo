@@ -75,7 +75,7 @@
   }
   function shoppingList(products) {
     return products
-      .filter(product => Number(product.stock) <= Number(product.minStock))
+      .filter(product => Number(product.stock) < Number(product.minStock))
       .sort((a, b) => Number(a.stock) - Number(b.stock) || a.name.localeCompare(b.name))
       .map(product => ({
         id: product.id,
@@ -89,5 +89,6 @@
 
   return { saleTotals, profitPercent, monthStats, closingStats, monthlyClosingStats, shoppingList };
 });
+
 
 
