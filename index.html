@@ -87,6 +87,7 @@
       <section id="sale" class="screen" aria-labelledby="saleTitle">
         <div class="section-heading"><h2 id="saleTitle">Registrar venda</h2></div>
         <form id="saleForm" class="panel form-grid">
+          <input id="editingSaleId" type="hidden">
           <label>Produto<select id="saleProduct" required></select></label>
           <label>Quantidade<input id="saleQuantity" type="number" min="1" step="1" value="1" required></label>
           <label>Data da venda<input id="saleDate" type="date" required></label>
@@ -94,9 +95,9 @@
           <label>Pagamento<select id="paymentStatus"><option value="paid">Pago na hora</option><option value="pending">Vai pagar depois</option></select></label>
           <label id="dueDateWrap">Data combinada para pagar<input id="dueDate" type="date"></label>
           <div class="form-total"><span>Total da venda</span><strong id="salePreview">R$ 0,00</strong></div>
-          <button class="primary" type="submit">Salvar venda</button>
+          <div class="form-actions"><button id="saleSubmitBtn" class="primary" type="submit">Salvar venda</button><button id="cancelEditSale" class="secondary hidden" type="button">Cancelar edição</button></div>
         </form>
-        <section class="panel"><h3>Últimas vendas</h3><div class="table-wrap"><table><thead><tr><th>Data</th><th>Produto</th><th>Qtd.</th><th>Total</th><th>Pagamento</th></tr></thead><tbody id="recentSalesTable"></tbody></table></div></section>
+        <section class="panel"><h3>Últimas vendas</h3><div class="table-wrap"><table><thead><tr><th>Data</th><th>Produto</th><th>Qtd.</th><th>Total</th><th>Pagamento</th><th></th></tr></thead><tbody id="recentSalesTable"></tbody></table></div></section>
       </section>
 
       <section id="products" class="screen" aria-labelledby="productsTitle">
@@ -188,6 +189,8 @@
   <script src="app.js"></script>
 </body>
 </html>
+
+
 
 
 

@@ -42,6 +42,9 @@ const els = {
   cancelEditProduct: document.getElementById("cancelEditProduct"),
   productsTable: document.getElementById("productsTable"),
   saleForm: document.getElementById("saleForm"),
+  editingSaleId: document.getElementById("editingSaleId"),
+  saleSubmitBtn: document.getElementById("saleSubmitBtn"),
+  cancelEditSale: document.getElementById("cancelEditSale"),
   saleProduct: document.getElementById("saleProduct"),
   saleQuantity: document.getElementById("saleQuantity"),
   saleDate: document.getElementById("saleDate"),
@@ -268,7 +271,7 @@ function renderPurchases() {
 function renderSales() {
   const recent = [...state.sales].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8);
   if (!recent.length) {
-    els.recentSalesTable.innerHTML = '<tr><td colspan="5">Nenhuma venda registrada ainda.</td></tr>';
+    els.recentSalesTable.innerHTML = '<tr><td colspan="6">Nenhuma venda registrada ainda.</td></tr>';
     return;
   }
   els.recentSalesTable.innerHTML = recent.map(sale => {
@@ -282,6 +285,7 @@ function renderSales() {
         <td>${sale.quantity}</td>
         <td>${money(totals.revenue)}</td>
         <td><span class="badge ${badgeClass}">${paidText}</span></td>
+        <td class="actions"><button class="secondary" type="button" data-edit-sale="${sale.id}">Editar</button><button class="secondary danger" type="button" data-delete-sale="${sale.id}">Excluir</button></td>
       </tr>`;
   }).join("");
 }
@@ -524,16 +528,9 @@ function handleProductSubmit(event) {
   showToast("Produto salvo.");
 }
 
-function handleSaleSubmit(event) {
-  event.preventDefault();
-  const product = getProduct(els.saleProduct.value);
-  const quantity = Number(els.saleQuantity.value);
-  if (!product) return showToast("Cadastre um produto primeiro.");
-  if (quantity > product.stock) return showToast("Não tem essa quantidade em estoque.");
-  if (els.paymentStatus.value === "pending" && !els.customerName.value.trim()) return showToast("Informe o nome de quem vai pagar depois.");
-  product.stock -= quantity;
-  state.sales.push({
-    id: uid("sale"),
+function buildSaleFromForm(id, product, quantity) {
+  return {
+    id,
     productId: product.id,
     productSnapshot: { name: product.name, cost: product.cost, price: product.price },
     unitCost: product.cost,
@@ -544,12 +541,40 @@ function handleSaleSubmit(event) {
     status: els.paymentStatus.value === "pending" ? "pending" : "paid",
     dueDate: els.paymentStatus.value === "pending" ? els.dueDate.value : "",
     paidDate: els.paymentStatus.value === "paid" ? els.saleDate.value : ""
-  });
+  };
+}
+
+function resetSaleForm() {
   els.saleForm.reset();
+  els.editingSaleId.value = "";
   els.saleQuantity.value = 1;
   els.saleDate.value = todayISO();
+  els.saleSubmitBtn.textContent = "Salvar venda";
+  els.cancelEditSale.classList.add("hidden");
+  updateSalePreview();
+}
+
+function handleSaleSubmit(event) {
+  event.preventDefault();
+  const product = getProduct(els.saleProduct.value);
+  const quantity = Number(els.saleQuantity.value);
+  const editingId = els.editingSaleId.value;
+  const oldSale = editingId ? state.sales.find(sale => sale.id === editingId) : null;
+  const availableStock = product ? product.stock + (oldSale && oldSale.productId === product.id ? Number(oldSale.quantity) : 0) : 0;
+  if (!product) return showToast("Cadastre um produto primeiro.");
+  if (quantity > availableStock) return showToast("Não tem essa quantidade em estoque.");
+  if (els.paymentStatus.value === "pending" && !els.customerName.value.trim()) return showToast("Informe o nome de quem vai pagar depois.");
+  const nextSale = buildSaleFromForm(editingId || uid("sale"), product, quantity);
+  logic.applySaleStockChange(state.products, oldSale, nextSale);
+  if (oldSale) {
+    const index = state.sales.findIndex(sale => sale.id === oldSale.id);
+    state.sales[index] = nextSale;
+  } else {
+    state.sales.push(nextSale);
+  }
+  resetSaleForm();
   render();
-  showToast("Venda registrada.");
+  showToast(oldSale ? "Venda atualizada." : "Venda registrada.");
 }
 
 function handlePurchaseSubmit(event) {
@@ -576,6 +601,33 @@ function handlePurchaseSubmit(event) {
   showToast("Compra registrada e estoque atualizado.");
 }
 
+
+function editSale(id) {
+  const sale = state.sales.find(item => item.id === id);
+  if (!sale) return;
+  els.editingSaleId.value = sale.id;
+  els.saleProduct.value = sale.productId;
+  els.saleQuantity.value = sale.quantity;
+  els.saleDate.value = sale.date;
+  els.customerName.value = sale.customer || "";
+  els.paymentStatus.value = sale.status === "pending" ? "pending" : "paid";
+  els.dueDate.value = sale.dueDate || "";
+  els.saleSubmitBtn.textContent = "Atualizar venda";
+  els.cancelEditSale.classList.remove("hidden");
+  updateSalePreview();
+  setScreen("sale");
+}
+
+function deleteSale(id) {
+  const sale = state.sales.find(item => item.id === id);
+  if (!sale) return;
+  if (!confirm("Excluir esta venda e devolver o produto ao estoque?")) return;
+  logic.applySaleStockChange(state.products, sale, null);
+  state.sales = state.sales.filter(item => item.id !== id);
+  if (els.editingSaleId.value === id) resetSaleForm();
+  render();
+  showToast("Venda excluída e estoque devolvido.");
+}
 function editProduct(id) {
   const product = getProduct(id);
   if (!product) return;
@@ -796,6 +848,7 @@ els.saleForm.addEventListener("submit", handleSaleSubmit);
 els.purchaseForm.addEventListener("submit", handlePurchaseSubmit);
 els.saleProduct.addEventListener("change", updateSalePreview);
 els.saleQuantity.addEventListener("input", updateSalePreview);
+els.cancelEditSale.addEventListener("click", resetSaleForm);
 els.paymentStatus.addEventListener("change", updateSalePreview);
 els.purchaseProduct.addEventListener("change", () => {
   const product = getProduct(els.purchaseProduct.value);
@@ -810,6 +863,12 @@ els.reportEnd.addEventListener("input", renderReports);
 els.closingMode.addEventListener("change", renderClosing);
 els.closingDate.addEventListener("input", renderClosing);
 els.closingMonth.addEventListener("input", renderClosing);
+els.recentSalesTable.addEventListener("click", event => {
+  const editId = event.target.dataset.editSale;
+  const deleteId = event.target.dataset.deleteSale;
+  if (editId) editSale(editId);
+  if (deleteId) deleteSale(deleteId);
+});
 els.productsTable.addEventListener("click", event => {
   const editId = event.target.dataset.editProduct;
   const deleteId = event.target.dataset.deleteProduct;
@@ -850,6 +909,9 @@ if ("serviceWorker" in navigator) {
 
 if (sessionStorage.getItem(SESSION_KEY) === "sim") showApp();
 else showLogin();
+
+
+
 
 
 

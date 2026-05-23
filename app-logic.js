@@ -73,6 +73,17 @@
       estimatedProfit: sum(salesInMonth, sale => saleTotals(sale).profit)
     };
   }
+
+  function applySaleStockChange(products, oldSale, newSale) {
+    if (oldSale) {
+      const oldProduct = products.find(product => product.id === oldSale.productId);
+      if (oldProduct) oldProduct.stock = Number(oldProduct.stock || 0) + Number(oldSale.quantity || 0);
+    }
+    if (newSale) {
+      const newProduct = products.find(product => product.id === newSale.productId);
+      if (newProduct) newProduct.stock = Number(newProduct.stock || 0) - Number(newSale.quantity || 0);
+    }
+  }
   function shoppingList(products) {
     return products
       .filter(product => Number(product.stock) < Number(product.minStock))
@@ -87,8 +98,9 @@
       }));
   }
 
-  return { saleTotals, profitPercent, monthStats, closingStats, monthlyClosingStats, shoppingList };
+  return { saleTotals, profitPercent, monthStats, closingStats, monthlyClosingStats, applySaleStockChange, shoppingList };
 });
+
 
 
 
