@@ -18,6 +18,13 @@
     return items.reduce((total, item) => total + pick(item), 0);
   }
 
+
+  function profitPercent(cost, price) {
+    const paid = Number(cost || 0);
+    const sale = Number(price || 0);
+    if (paid <= 0) return 0;
+    return ((sale - paid) / paid) * 100;
+  }
   function sameMonth(date, referenceDate) {
     return date.slice(0, 7) === referenceDate.slice(0, 7);
   }
@@ -80,6 +87,7 @@
       }));
   }
 
-  return { saleTotals, monthStats, closingStats, monthlyClosingStats, shoppingList };
+  return { saleTotals, profitPercent, monthStats, closingStats, monthlyClosingStats, shoppingList };
 });
+
 

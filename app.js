@@ -120,6 +120,9 @@ function money(value) {
   return Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+function formatPercent(value) {
+  return `${Number(value || 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
+}
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -846,6 +849,7 @@ if ("serviceWorker" in navigator) {
 
 if (sessionStorage.getItem(SESSION_KEY) === "sim") showApp();
 else showLogin();
+
 
 
 
