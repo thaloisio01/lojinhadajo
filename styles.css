@@ -248,7 +248,7 @@ table { width: 100%; border-collapse: collapse; min-width: 680px; }
 th, td { padding: 12px 10px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: middle; }
 th { color: var(--muted); font-size: 0.86rem; }
 td.actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.profit-percent { display: block; margin-top: 4px; color: var(--brand); font-weight: 900; }
+.profit-percent { display: inline-flex; align-items: center; justify-content: center; min-width: 54px; padding: 7px 10px; border-radius: 999px; background: var(--brand-soft); color: var(--brand-dark); font-weight: 900; }
 .badge { display: inline-flex; align-items: center; border-radius: 999px; padding: 6px 10px; font-size: 0.84rem; font-weight: 700; }
 .badge.paid { background: #edf3ee; color: var(--sage); }
 .badge.pending { background: #fde8cf; color: #7a3b12; }
@@ -295,4 +295,5 @@ td.actions { display: flex; gap: 8px; flex-wrap: wrap; }
   .tab { min-width: 104px; }
   table { min-width: 620px; }
 }
+
 
