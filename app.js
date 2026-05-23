@@ -118,6 +118,7 @@ function loadState() {
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  if (cloudReady && !cloudApplying) scheduleCloudPush();
 }
 
 function money(value) {
@@ -509,7 +510,7 @@ function updatePurchasePreview() {
   els.purchasePreview.textContent = money(quantity * Number(els.purchaseUnitCost.value || unitCost));
 }
 
-function handleLogin(event) {
+async function handleLogin(event) {
   event.preventDefault();
   const userOk = els.loginUser.value.trim().toLowerCase() === LOGIN_USER.toLowerCase();
   const passwordOk = els.loginPassword.value === LOGIN_PASSWORD;
@@ -517,9 +518,12 @@ function handleLogin(event) {
     els.loginError.textContent = "Login ou senha incorretos.";
     return;
   }
+  const cloudLoginOk = await signInSupabaseIfConfigured(els.loginPassword.value);
+  if (!cloudLoginOk) return;
   sessionStorage.setItem(SESSION_KEY, "sim");
   els.loginError.textContent = "";
   showApp();
+  initSupabaseSync();
 }
 
 function handleProductSubmit(event) {
@@ -747,6 +751,13 @@ function capitalize(value) {
   return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
 }
 
+function hasLocalBusinessData(data) {
+  return Boolean(
+    (Array.isArray(data.products) && data.products.length) ||
+    (Array.isArray(data.sales) && data.sales.length) ||
+    (Array.isArray(data.purchases) && data.purchases.length)
+  );
+}
 function sanitizedState() {
   return {
     products: state.products,
@@ -771,6 +782,37 @@ function hasSupabaseConfig(config) {
   return Boolean(config && config.url && config.anonKey && !config.url.includes("COLOQUE") && !config.anonKey.includes("COLOQUE"));
 }
 
+async function ensureCloudClient() {
+  const config = window.LOJINHA_SUPABASE;
+  if (!hasSupabaseConfig(config)) return false;
+  if (!cloudClient) {
+    const module = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm");
+    cloudClient = module.createClient(config.url, config.anonKey);
+  }
+  cloudTable = config.table || cloudTable;
+  cloudRowId = config.rowId || cloudRowId;
+  return true;
+}
+
+async function signInSupabaseIfConfigured(password) {
+  const config = window.LOJINHA_SUPABASE;
+  if (!hasSupabaseConfig(config) || location.protocol === "file:") return true;
+  try {
+    setSyncStatus("Entrando no sync...");
+    await ensureCloudClient();
+    const result = await cloudClient.auth.signInWithPassword({
+      email: config.authEmail,
+      password
+    });
+    if (result.error) throw result.error;
+    return true;
+  } catch (error) {
+    console.error(error);
+    setSyncStatus("Login Supabase falhou");
+    els.loginError.textContent = "Login correto, mas o Supabase não conectou. Confira internet e senha do usuário no Supabase.";
+    return false;
+  }
+}
 async function initSupabaseSync() {
   const config = window.LOJINHA_SUPABASE;
   if (!hasSupabaseConfig(config)) {
@@ -783,17 +825,31 @@ async function initSupabaseSync() {
   }
   try {
     setSyncStatus("Conectando...");
-    const module = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm");
-    cloudClient = module.createClient(config.url, config.anonKey);
-    cloudTable = config.table || cloudTable;
-    cloudRowId = config.rowId || cloudRowId;
+    await ensureCloudClient();
+    const sessionResult = await cloudClient.auth.getSession();
+    if (!sessionResult.data.session) {
+      sessionStorage.removeItem(SESSION_KEY);
+      showLogin();
+      setSyncStatus("Faça login para sincronizar");
+      return;
+    }
 
     const result = await cloudClient.from(cloudTable).select("data").eq("id", cloudRowId).maybeSingle();
     if (result.error) throw result.error;
 
-    if (result.data?.data) {
+    const cloudData = result.data?.data;
+    const localData = sanitizedState();
+    if (cloudData && hasLocalBusinessData(cloudData)) {
       cloudApplying = true;
-      replaceState(result.data.data);
+      replaceState(cloudData);
+      lastCloudJson = JSON.stringify(sanitizedState());
+      render();
+      cloudApplying = false;
+    } else if (hasLocalBusinessData(localData)) {
+      await pushCloudState(true);
+    } else if (cloudData) {
+      cloudApplying = true;
+      replaceState(cloudData);
       lastCloudJson = JSON.stringify(sanitizedState());
       render();
       cloudApplying = false;
@@ -928,8 +984,15 @@ if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => navigator.serviceWorker.register("service-worker.js"));
 }
 
-if (sessionStorage.getItem(SESSION_KEY) === "sim") showApp();
-else showLogin();
+if (sessionStorage.getItem(SESSION_KEY) === "sim") {
+  showApp();
+  initSupabaseSync();
+} else {
+  showLogin();
+}
+
+
+
 
 
 
