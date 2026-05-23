@@ -5,6 +5,20 @@
     root.LojinhaLogic = factory();
   }
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
+
+  function normalizeProductName(name) {
+    return String(name || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .replace(/\s+/g, " ")
+      .toLowerCase();
+  }
+
+  function hasDuplicateProductName(products, name, currentId) {
+    const normalized = normalizeProductName(name);
+    return products.some(product => product.id !== currentId && normalizeProductName(product.name) === normalized);
+  }
   function saleTotals(sale) {
     const price = sale.unitPrice ?? sale.productSnapshot?.price ?? 0;
     const cost = sale.unitCost ?? sale.productSnapshot?.cost ?? 0;
@@ -98,8 +112,9 @@
       }));
   }
 
-  return { saleTotals, profitPercent, monthStats, closingStats, monthlyClosingStats, applySaleStockChange, shoppingList };
+  return { saleTotals, normalizeProductName, hasDuplicateProductName, profitPercent, monthStats, closingStats, monthlyClosingStats, applySaleStockChange, shoppingList };
 });
+
 
 
 

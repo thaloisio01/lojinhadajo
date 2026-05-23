@@ -27,7 +27,7 @@
   <div id="appShell" class="hidden">
     <header class="topbar">
       <div class="brand-wrap">
-        <span class="brand-mark">Jô</span>
+        <img class="brand-logo" src="assets/logo-lojinha.png" alt="Logo Lojinha da Jô" onerror="this.classList.add('hidden')"><span class="brand-mark">Jô</span>
         <div>
           <p class="eyebrow">controle simples</p>
           <h1>Lojinha da Jô</h1>
@@ -92,7 +92,7 @@
           <label>Quantidade<input id="saleQuantity" type="number" min="1" step="1" value="1" required></label>
           <label>Data da venda<input id="saleDate" type="date" required></label>
           <label>Cliente<input id="customerName" type="text" placeholder="Nome de quem comprou"></label>
-          <label>Pagamento<select id="paymentStatus"><option value="paid">Pago na hora</option><option value="pending">Vai pagar depois</option></select></label>
+          <label>Pagamento<select id="paymentStatus"><option value="paid">Pagamento</option><option value="pending">Vale</option></select></label>
           <label id="dueDateWrap">Data combinada para pagar<input id="dueDate" type="date"></label>
           <div class="form-total"><span>Total da venda</span><strong id="salePreview">R$ 0,00</strong></div>
           <div class="form-actions"><button id="saleSubmitBtn" class="primary" type="submit">Salvar venda</button><button id="cancelEditSale" class="secondary hidden" type="button">Cancelar edição</button></div>
@@ -105,13 +105,14 @@
         <form id="productForm" class="panel form-grid">
           <input id="editingProductId" type="hidden">
           <label>Nome do produto<input id="productName" type="text" placeholder="Ex.: Café 500g" required></label>
+          <label>Categoria<input id="productCategory" type="text" placeholder="Ex.: Bebidas, doces, higiene" required></label>
           <label>Preço que pagou<input id="productCost" type="number" min="0" step="0.01" placeholder="0,00" required></label>
           <label>Preço de venda<input id="productPrice" type="number" min="0" step="0.01" placeholder="0,00" required></label>
           <label>Quantidade em estoque<input id="productStock" type="number" min="0" step="1" placeholder="0" required></label>
           <label>Avisar quando chegar em<input id="productMinStock" type="number" min="0" step="1" value="3" required></label>
           <div class="form-actions"><button class="primary" type="submit">Salvar produto</button><button id="cancelEditProduct" class="secondary hidden" type="button">Cancelar edição</button></div>
         </form>
-        <section class="panel"><h3>Lista de produtos</h3><div class="table-wrap"><table><thead><tr><th>Produto</th><th>Pago</th><th>Venda</th><th>Lucro un.</th><th>Lucro %</th><th>Estoque</th><th></th></tr></thead><tbody id="productsTable"></tbody></table></div></section>
+        <section class="panel"><h3>Lista de produtos</h3><div class="table-wrap"><table><thead><tr><th>Produto</th><th>Categoria</th><th>Pago</th><th>Venda</th><th>Lucro un.</th><th>Lucro %</th><th>Estoque</th><th></th></tr></thead><tbody id="productsTable"></tbody></table></div></section>
       </section>
 
       <section id="purchases" class="screen" aria-labelledby="purchasesTitle">
@@ -189,6 +190,8 @@
   <script src="app.js"></script>
 </body>
 </html>
+
+
 
 
 

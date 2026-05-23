@@ -35,6 +35,7 @@ const els = {
   productForm: document.getElementById("productForm"),
   editingProductId: document.getElementById("editingProductId"),
   productName: document.getElementById("productName"),
+  productCategory: document.getElementById("productCategory"),
   productCost: document.getElementById("productCost"),
   productPrice: document.getElementById("productPrice"),
   productStock: document.getElementById("productStock"),
@@ -229,7 +230,7 @@ function renderProductOptions() {
 
 function renderProducts() {
   if (!state.products.length) {
-    els.productsTable.innerHTML = '<tr><td colspan="7">Nenhum produto cadastrado ainda.</td></tr>';
+    els.productsTable.innerHTML = '<tr><td colspan="8">Nenhum produto cadastrado ainda.</td></tr>';
     return;
   }
   els.productsTable.innerHTML = state.products.map(product => {
@@ -238,7 +239,8 @@ function renderProducts() {
     return `
       <tr>
         <td><strong>${escapeHTML(product.name)}</strong></td>
-        <td>${money(product.cost)}</td>
+                <td>${escapeHTML(product.category || "Sem categoria")}</td>
+<td>${money(product.cost)}</td>
         <td>${money(product.price)}</td>
         <td>${money(profit)}</td>
         <td><span class="profit-percent">${formatPercent(logic.profitPercent(product.cost, product.price))}</span></td>
@@ -276,7 +278,7 @@ function renderSales() {
   }
   els.recentSalesTable.innerHTML = recent.map(sale => {
     const totals = saleTotals(sale);
-    const paidText = sale.status === "paid" || sale.status === "paid-later" ? "Pago" : "A receber";
+    const paidText = sale.status === "paid" || sale.status === "paid-later" ? "Pagamento" : "Vale";
     const badgeClass = sale.status === "pending" ? "pending" : "paid";
     return `
       <tr>
@@ -511,11 +513,13 @@ function handleProductSubmit(event) {
   const product = {
     id,
     name: els.productName.value.trim(),
+        category: els.productCategory.value.trim(),
     cost: Number(els.productCost.value),
     price: Number(els.productPrice.value),
     stock: Number(els.productStock.value),
     minStock: Number(els.productMinStock.value)
   };
+  if (logic.hasDuplicateProductName(state.products, product.name, id)) return showToast("Esse produto já existe. Edite o produto cadastrado em vez de criar outro.");
   if (product.price < product.cost) showToast("Atenção: o preço de venda está menor que o valor pago.");
   const index = state.products.findIndex(item => item.id === id);
   if (index >= 0) state.products[index] = product;
@@ -532,7 +536,7 @@ function buildSaleFromForm(id, product, quantity) {
   return {
     id,
     productId: product.id,
-    productSnapshot: { name: product.name, cost: product.cost, price: product.price },
+    productSnapshot: { name: product.name, category: product.category || "", cost: product.cost, price: product.price },
     unitCost: product.cost,
     unitPrice: product.price,
     quantity,
@@ -563,7 +567,7 @@ function handleSaleSubmit(event) {
   const availableStock = product ? product.stock + (oldSale && oldSale.productId === product.id ? Number(oldSale.quantity) : 0) : 0;
   if (!product) return showToast("Cadastre um produto primeiro.");
   if (quantity > availableStock) return showToast("Não tem essa quantidade em estoque.");
-  if (els.paymentStatus.value === "pending" && !els.customerName.value.trim()) return showToast("Informe o nome de quem vai pagar depois.");
+  if (els.paymentStatus.value === "pending" && !els.customerName.value.trim()) return showToast("Informe o nome de quem ficará no vale.");
   const nextSale = buildSaleFromForm(editingId || uid("sale"), product, quantity);
   logic.applySaleStockChange(state.products, oldSale, nextSale);
   if (oldSale) {
@@ -633,6 +637,7 @@ function editProduct(id) {
   if (!product) return;
   els.editingProductId.value = product.id;
   els.productName.value = product.name;
+    els.productCategory.value = product.category || "";
   els.productCost.value = product.cost;
   els.productPrice.value = product.price;
   els.productStock.value = product.stock;
@@ -909,6 +914,9 @@ if ("serviceWorker" in navigator) {
 
 if (sessionStorage.getItem(SESSION_KEY) === "sim") showApp();
 else showLogin();
+
+
+
 
 
 
