@@ -1,0 +1,263 @@
+﻿<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#7f1d1d">
+  <title>Lojinha da Jô</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <section id="loginScreen" class="login-screen" aria-labelledby="loginTitle">
+    <form id="loginForm" class="login-card">
+      <p class="eyebrow">acesso da lojinha</p>
+      <h1 id="loginTitle">Lojinha da Jô</h1>
+      <label>Login
+        <input id="loginUser" type="text" autocomplete="username" required>
+      </label>
+      <label>Senha
+        <input id="loginPassword" type="password" autocomplete="current-password" required>
+      </label>
+      <button class="primary" type="submit">Entrar</button>
+      <p id="loginError" class="login-error" role="alert"></p>
+    </form>
+  </section>
+
+  <div id="appShell" class="hidden">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">controle simples</p>
+        <h1>Lojinha da Jô</h1>
+      </div>
+      <div class="top-actions">
+        <button id="installBtn" class="icon-button hidden" type="button" title="Instalar aplicativo">Instalar</button>
+        <span id="syncStatus" class="sync-status">Modo local</span>
+        <button id="logoutBtn" class="icon-button" type="button" title="Sair do aplicativo">Sair</button>
+      </div>
+    </header>
+
+    <nav class="tabs" aria-label="Navegação principal">
+      <button class="tab active" data-screen="dashboard" type="button">Resumo</button>
+      <button class="tab" data-screen="sale" type="button">Vender</button>
+      <button class="tab" data-screen="products" type="button">Produtos</button>
+      <button class="tab" data-screen="purchases" type="button">Compras</button>
+      <button class="tab" data-screen="debts" type="button">A receber</button>
+      <button class="tab" data-screen="reports" type="button">Relatórios</button>
+    </nav>
+
+    <main>
+      <section id="dashboard" class="screen active" aria-labelledby="dashboardTitle">
+        <div class="section-heading">
+          <h2 id="dashboardTitle">Resumo da lojinha</h2>
+          <span id="todayLabel"></span>
+        </div>
+        <div class="metrics">
+          <article class="metric"><span>Vendido hoje</span><strong id="todayRevenue">R$ 0,00</strong></article>
+          <article class="metric"><span>Lucro hoje</span><strong id="todayProfit">R$ 0,00</strong></article>
+          <article class="metric"><span>A receber</span><strong id="pendingAmount">R$ 0,00</strong></article>
+          <article class="metric"><span>Estoque investido</span><strong id="stockCost">R$ 0,00</strong></article>
+        </div>
+        <div class="two-columns">
+          <section class="panel">
+            <h3>Produtos acabando</h3>
+            <div id="lowStockList" class="list empty-state">Nenhum produto cadastrado ainda.</div>
+          </section>
+          <section class="panel">
+            <h3>Próximos pagamentos</h3>
+            <div id="upcomingDebts" class="list empty-state">Nenhuma venda pendente.</div>
+          </section>
+        </div>
+      </section>
+
+      <section id="sale" class="screen" aria-labelledby="saleTitle">
+        <div class="section-heading">
+          <h2 id="saleTitle">Registrar venda</h2>
+        </div>
+        <form id="saleForm" class="panel form-grid">
+          <label>Produto
+            <select id="saleProduct" required></select>
+          </label>
+          <label>Quantidade
+            <input id="saleQuantity" type="number" min="1" step="1" value="1" required>
+          </label>
+          <label>Data da venda
+            <input id="saleDate" type="date" required>
+          </label>
+          <label>Cliente
+            <input id="customerName" type="text" placeholder="Nome de quem comprou">
+          </label>
+          <label>Pagamento
+            <select id="paymentStatus">
+              <option value="paid">Pago na hora</option>
+              <option value="pending">Vai pagar depois</option>
+            </select>
+          </label>
+          <label id="dueDateWrap">Data combinada para pagar
+            <input id="dueDate" type="date">
+          </label>
+          <div class="form-total">
+            <span>Total da venda</span>
+            <strong id="salePreview">R$ 0,00</strong>
+          </div>
+          <button class="primary" type="submit">Salvar venda</button>
+        </form>
+        <section class="panel">
+          <h3>Últimas vendas</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Data</th><th>Produto</th><th>Qtd.</th><th>Total</th><th>Pagamento</th></tr></thead>
+              <tbody id="recentSalesTable"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section id="products" class="screen" aria-labelledby="productsTitle">
+        <div class="section-heading">
+          <h2 id="productsTitle">Produtos e estoque</h2>
+        </div>
+        <form id="productForm" class="panel form-grid">
+          <input id="editingProductId" type="hidden">
+          <label>Nome do produto
+            <input id="productName" type="text" placeholder="Ex.: Café 500g" required>
+          </label>
+          <label>Preço que pagou
+            <input id="productCost" type="number" min="0" step="0.01" placeholder="0,00" required>
+          </label>
+          <label>Preço de venda
+            <input id="productPrice" type="number" min="0" step="0.01" placeholder="0,00" required>
+          </label>
+          <label>Quantidade em estoque
+            <input id="productStock" type="number" min="0" step="1" placeholder="0" required>
+          </label>
+          <label>Avisar quando chegar em
+            <input id="productMinStock" type="number" min="0" step="1" value="3" required>
+          </label>
+          <div class="form-actions">
+            <button class="primary" type="submit">Salvar produto</button>
+            <button id="cancelEditProduct" class="secondary hidden" type="button">Cancelar edição</button>
+          </div>
+        </form>
+        <section class="panel">
+          <h3>Lista de produtos</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Produto</th><th>Pago</th><th>Venda</th><th>Lucro un.</th><th>Estoque</th><th></th></tr></thead>
+              <tbody id="productsTable"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section id="purchases" class="screen" aria-labelledby="purchasesTitle">
+        <div class="section-heading">
+          <h2 id="purchasesTitle">Compras e reposição</h2>
+        </div>
+        <form id="purchaseForm" class="panel form-grid">
+          <label>Produto comprado
+            <select id="purchaseProduct" required></select>
+          </label>
+          <label>Quantidade comprada
+            <input id="purchaseQuantity" type="number" min="1" step="1" value="1" required>
+          </label>
+          <label>Valor pago por unidade
+            <input id="purchaseUnitCost" type="number" min="0" step="0.01" placeholder="0,00" required>
+          </label>
+          <label>Data da compra
+            <input id="purchaseDate" type="date" required>
+          </label>
+          <label>Mercado/observação
+            <input id="purchaseNote" type="text" placeholder="Ex.: mercado, promoção">
+          </label>
+          <div class="form-total">
+            <span>Total da compra</span>
+            <strong id="purchasePreview">R$ 0,00</strong>
+          </div>
+          <button class="primary" type="submit">Salvar compra</button>
+        </form>
+        <section class="panel">
+          <h3>Últimas compras</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Data</th><th>Produto</th><th>Qtd.</th><th>Pago un.</th><th>Total</th><th>Obs.</th></tr></thead>
+              <tbody id="purchasesTable"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section id="debts" class="screen" aria-labelledby="debtsTitle">
+        <div class="section-heading">
+          <h2 id="debtsTitle">Vendas a receber</h2>
+        </div>
+        <section class="panel">
+          <div class="toolbar">
+            <button id="showPending" class="secondary active-filter" type="button">Pendentes</button>
+            <button id="showPaidLater" class="secondary" type="button">Já recebidas</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Cliente</th><th>Produto</th><th>Valor</th><th>Venda</th><th>Prazo</th><th></th></tr></thead>
+              <tbody id="debtsTable"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section id="reports" class="screen" aria-labelledby="reportsTitle">
+        <div class="section-heading">
+          <h2 id="reportsTitle">Relatórios e backup</h2>
+        </div>
+        <section class="panel filter-panel">
+          <h3>Período do relatório</h3>
+          <div class="form-grid compact-grid">
+            <label>Filtro
+              <select id="reportFilter">
+                <option value="this-month">Este mês</option>
+                <option value="last-month">Mês passado</option>
+                <option value="custom">Período específico</option>
+                <option value="all">Tudo</option>
+              </select>
+            </label>
+            <label id="reportStartWrap">Data inicial
+              <input id="reportStart" type="date">
+            </label>
+            <label id="reportEndWrap">Data final
+              <input id="reportEnd" type="date">
+            </label>
+          </div>
+          <p id="reportPeriodLabel" class="period-label"></p>
+        </section>
+        <div class="metrics">
+          <article class="metric"><span>Total vendido no período</span><strong id="allRevenue">R$ 0,00</strong></article>
+          <article class="metric"><span>Lucro no período</span><strong id="allProfit">R$ 0,00</strong></article>
+          <article class="metric"><span>Valor em estoque</span><strong id="stockSaleValue">R$ 0,00</strong></article>
+          <article class="metric"><span>Lucro se vender tudo</span><strong id="expectedProfit">R$ 0,00</strong></article>
+        </div>
+        <section class="panel report-panel">
+          <h3>Produto que mais vendeu no período</h3>
+          <p id="bestSeller">Ainda não há vendas registradas.</p>
+        </section>
+        <section class="panel backup-panel">
+          <h3>Guardar os dados</h3>
+          <p id="backupStatus" class="backup-status">Nenhum backup baixado ainda.</p>
+          <div class="backup-actions">
+            <button id="exportCsv" class="secondary" type="button">Baixar planilha CSV</button>
+            <button id="exportJson" class="secondary" type="button">Baixar backup</button>
+            <label class="file-button">Importar backup
+              <input id="importJson" type="file" accept="application/json">
+            </label>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script src="supabase-config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
+
+
