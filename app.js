@@ -774,6 +774,9 @@ function replaceState(nextState) {
   state.lastBackupAt = nextState.lastBackupAt || "";
 }
 
+function readableError(error) {
+  return error?.message || error?.error_description || error?.details || String(error || "erro desconhecido");
+}
 function setSyncStatus(message) {
   if (els.syncStatus) els.syncStatus.textContent = message;
 }
@@ -807,9 +810,10 @@ async function signInSupabaseIfConfigured(password) {
     if (result.error) throw result.error;
     return true;
   } catch (error) {
-    console.error(error);
-    setSyncStatus("Login Supabase falhou");
-    els.loginError.textContent = "Login correto, mas o Supabase não conectou. Confira internet e senha do usuário no Supabase.";
+    console.error("Supabase login error", error);
+    const message = readableError(error);
+    setSyncStatus(`Login falhou: ${message}`);
+    els.loginError.textContent = `Login correto, mas o Supabase recusou: ${message}`;
     return false;
   }
 }
@@ -877,10 +881,11 @@ async function initSupabaseSync() {
         if (status === "CHANNEL_ERROR") setSyncStatus("Erro no sync");
       });
   } catch (error) {
-    console.error(error);
+    console.error("Supabase sync error", error);
+    const message = readableError(error);
     cloudReady = false;
-    setSyncStatus("Sync desligado");
-    showToast("Não consegui conectar ao Supabase. O app continua local.");
+    setSyncStatus(`Sync erro: ${message}`);
+    showToast(`Supabase: ${message}`);
   }
 }
 
@@ -905,9 +910,10 @@ async function pushCloudState(force) {
     lastCloudJson = json;
     setSyncStatus("Sincronizado");
   } catch (error) {
-    console.error(error);
-    setSyncStatus("Erro no sync");
-    showToast("Não consegui salvar na nuvem agora.");
+    console.error("Supabase save error", error);
+    const message = readableError(error);
+    setSyncStatus(`Erro no sync: ${message}`);
+    showToast(`Não salvei na nuvem: ${message}`);
   }
 }
 function escapeHTML(value) {
@@ -990,6 +996,9 @@ if (sessionStorage.getItem(SESSION_KEY) === "sim") {
 } else {
   showLogin();
 }
+
+
+
 
 
 
