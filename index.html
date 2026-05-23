@@ -129,11 +129,11 @@
 
       <section id="closing" class="screen" aria-labelledby="closingTitle">
         <div class="section-heading"><h2 id="closingTitle">Fechamento do dia</h2><span id="closingDateLabel"></span></div>
-        <section class="panel filter-panel"><h3>Data do fechamento</h3><div class="form-grid compact-grid"><label>Escolha o dia<input id="closingDate" type="date"></label></div></section>
+        <section class="panel filter-panel"><h3>Período do fechamento</h3><div class="form-grid compact-grid"><label>Tipo de fechamento<select id="closingMode"><option value="day">Fechamento do dia</option><option value="month">Fechamento do mês</option></select></label><label id="closingDateWrap">Escolha o dia<input id="closingDate" type="date"></label><label id="closingMonthWrap">Escolha o mês<input id="closingMonth" type="month"></label></div></section>
         <div class="metrics">
-          <article class="metric"><i class="metric-icon">R$</i><span>Vendido no dia</span><strong id="closingSold">R$ 0,00</strong></article>
-          <article class="metric"><i class="metric-icon">OK</i><span>Recebido no dia</span><strong id="closingReceived">R$ 0,00</strong></article>
-          <article class="metric"><i class="metric-icon">P</i><span>Fiado do dia</span><strong id="closingPending">R$ 0,00</strong></article>
+          <article class="metric"><i class="metric-icon">R$</i><span id="closingSoldLabel">Vendido no dia</span><strong id="closingSold">R$ 0,00</strong></article>
+          <article class="metric"><i class="metric-icon">OK</i><span id="closingReceivedLabel">Recebido no dia</span><strong id="closingReceived">R$ 0,00</strong></article>
+          <article class="metric"><i class="metric-icon">P</i><span id="closingPendingLabel">Fiado do dia</span><strong id="closingPending">R$ 0,00</strong></article>
           <article class="metric"><i class="metric-icon">%</i><span>Lucro estimado</span><strong id="closingProfit">R$ 0,00</strong></article>
         </div>
         <section class="panel accent-panel"><h3>Resumo rápido</h3><div id="closingSummary" class="closing-summary"></div></section>
@@ -188,3 +188,4 @@
   <script src="app.js"></script>
 </body>
 </html>
+

@@ -1,4 +1,4 @@
-(function (root, factory) {
+﻿(function (root, factory) {
   if (typeof module === "object" && module.exports) {
     module.exports = factory();
   } else {
@@ -49,6 +49,23 @@
     };
   }
 
+
+  function monthlyClosingStats(sales, month) {
+    const salesInMonth = sales.filter(sale => sale.date.slice(0, 7) === month);
+    const paidInMonth = sales.filter(sale => {
+      if (sale.status === "paid") return sale.date.slice(0, 7) === month;
+      if (sale.status === "paid-later" && sale.paidDate) return sale.paidDate.slice(0, 7) === month;
+      return false;
+    });
+    const pendingFromMonth = salesInMonth.filter(sale => sale.status === "pending");
+    return {
+      salesCount: salesInMonth.length,
+      soldTotal: sum(salesInMonth, sale => saleTotals(sale).revenue),
+      receivedTotal: sum(paidInMonth, sale => saleTotals(sale).revenue),
+      pendingTotal: sum(pendingFromMonth, sale => saleTotals(sale).revenue),
+      estimatedProfit: sum(salesInMonth, sale => saleTotals(sale).profit)
+    };
+  }
   function shoppingList(products) {
     return products
       .filter(product => Number(product.stock) <= Number(product.minStock))
@@ -63,5 +80,6 @@
       }));
   }
 
-  return { saleTotals, monthStats, closingStats, shoppingList };
+  return { saleTotals, monthStats, closingStats, monthlyClosingStats, shoppingList };
 });
+

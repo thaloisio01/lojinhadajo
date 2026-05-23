@@ -59,7 +59,14 @@ const els = {
   purchaseNote: document.getElementById("purchaseNote"),
   purchasePreview: document.getElementById("purchasePreview"),
   purchasesTable: document.getElementById("purchasesTable"),
+  closingMode: document.getElementById("closingMode"),
   closingDate: document.getElementById("closingDate"),
+  closingMonth: document.getElementById("closingMonth"),
+  closingDateWrap: document.getElementById("closingDateWrap"),
+  closingMonthWrap: document.getElementById("closingMonthWrap"),
+  closingSoldLabel: document.getElementById("closingSoldLabel"),
+  closingReceivedLabel: document.getElementById("closingReceivedLabel"),
+  closingPendingLabel: document.getElementById("closingPendingLabel"),
   closingDateLabel: document.getElementById("closingDateLabel"),
   closingSold: document.getElementById("closingSold"),
   closingReceived: document.getElementById("closingReceived"),
@@ -190,6 +197,7 @@ function renderDates() {
   if (!els.saleDate.value) els.saleDate.value = todayISO();
   if (!els.purchaseDate.value) els.purchaseDate.value = todayISO();
   if (els.closingDate && !els.closingDate.value) els.closingDate.value = todayISO();
+  if (els.closingMonth && !els.closingMonth.value) els.closingMonth.value = todayISO().slice(0, 7);
 }
 
 function fillProductSelect(select, emptyText) {
@@ -335,9 +343,17 @@ function renderDebts() {
 
 function renderClosing() {
   if (!els.closingDate) return;
-  const date = els.closingDate.value || todayISO();
-  const stats = logic.closingStats(state.sales, date);
-  els.closingDateLabel.textContent = `Fechamento de ${formatDate(date)}`;
+  const mode = els.closingMode.value;
+  const isMonth = mode === "month";
+  els.closingDateWrap.classList.toggle("hidden", isMonth);
+  els.closingMonthWrap.classList.toggle("hidden", !isMonth);
+  const period = isMonth ? (els.closingMonth.value || todayISO().slice(0, 7)) : (els.closingDate.value || todayISO());
+  const stats = isMonth ? logic.monthlyClosingStats(state.sales, period) : logic.closingStats(state.sales, period);
+  const periodLabel = isMonth ? monthName(new Date(`${period}-01T00:00:00`)) : formatDate(period);
+  els.closingDateLabel.textContent = isMonth ? `Fechamento de ${periodLabel}` : `Fechamento de ${periodLabel}`;
+  els.closingSoldLabel.textContent = isMonth ? "Vendido no mês" : "Vendido no dia";
+  els.closingReceivedLabel.textContent = isMonth ? "Recebido no mês" : "Recebido no dia";
+  els.closingPendingLabel.textContent = isMonth ? "Fiado do mês" : "Fiado do dia";
   els.closingSold.textContent = money(stats.soldTotal);
   els.closingReceived.textContent = money(stats.receivedTotal);
   els.closingPending.textContent = money(stats.pendingTotal);
@@ -346,7 +362,7 @@ function renderClosing() {
     <div class="summary-line"><span>Vendas registradas</span><strong>${stats.salesCount}</strong></div>
     <div class="summary-line"><span>Entrou no caixa</span><strong>${money(stats.receivedTotal)}</strong></div>
     <div class="summary-line"><span>Ficou para receber</span><strong>${money(stats.pendingTotal)}</strong></div>
-    <div class="summary-line"><span>Lucro estimado das vendas do dia</span><strong>${money(stats.estimatedProfit)}</strong></div>`;
+    <div class="summary-line"><span>Lucro estimado das vendas ${isMonth ? "do mês" : "do dia"}</span><strong>${money(stats.estimatedProfit)}</strong></div>`;
 }
 
 function renderShoppingList() {
@@ -787,7 +803,9 @@ els.purchaseUnitCost.addEventListener("input", updatePurchasePreview);
 els.reportFilter.addEventListener("change", renderReports);
 els.reportStart.addEventListener("input", renderReports);
 els.reportEnd.addEventListener("input", renderReports);
+els.closingMode.addEventListener("change", renderClosing);
 els.closingDate.addEventListener("input", renderClosing);
+els.closingMonth.addEventListener("input", renderClosing);
 els.productsTable.addEventListener("click", event => {
   const editId = event.target.dataset.editProduct;
   const deleteId = event.target.dataset.deleteProduct;
@@ -828,6 +846,7 @@ if ("serviceWorker" in navigator) {
 
 if (sessionStorage.getItem(SESSION_KEY) === "sim") showApp();
 else showLogin();
+
 
 
 
