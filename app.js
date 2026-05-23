@@ -270,6 +270,21 @@ function renderPurchases() {
     </tr>`).join("");
 }
 
+function isPendingPaymentType(value) {
+  return value === "payday" || value === "voucher" || value === "pending";
+}
+
+function salePaymentLabel(sale) {
+  if (sale.status === "pending") return sale.paymentType === "payday" ? "Pagamento" : "Vale";
+  if (sale.paymentType === "payday") return "Pagamento recebido";
+  if (sale.paymentType === "voucher") return "Vale recebido";
+  return "Pago na hora";
+}
+
+function paymentSelectValueForSale(sale) {
+  if (sale.status === "pending") return sale.paymentType === "payday" ? "payday" : "voucher";
+  return sale.paymentType || "paid-now";
+}
 function renderSales() {
   const recent = [...state.sales].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8);
   if (!recent.length) {
@@ -278,7 +293,7 @@ function renderSales() {
   }
   els.recentSalesTable.innerHTML = recent.map(sale => {
     const totals = saleTotals(sale);
-    const paidText = sale.status === "paid" || sale.status === "paid-later" ? "Pagamento" : "Vale";
+    const paidText = salePaymentLabel(sale);
     const badgeClass = sale.status === "pending" ? "pending" : "paid";
     return `
       <tr>
@@ -482,8 +497,8 @@ function updateSalePreview() {
   const product = getProduct(els.saleProduct.value);
   const quantity = Number(els.saleQuantity.value || 0);
   els.salePreview.textContent = money(product ? product.price * quantity : 0);
-  els.dueDateWrap.classList.toggle("hidden", els.paymentStatus.value !== "pending");
-  if (els.paymentStatus.value === "pending" && !els.dueDate.value) els.dueDate.value = todayISO();
+  els.dueDateWrap.classList.toggle("hidden", !isPendingPaymentType(els.paymentStatus.value));
+  if (isPendingPaymentType(els.paymentStatus.value) && !els.dueDate.value) els.dueDate.value = todayISO();
 }
 
 function updatePurchasePreview() {
@@ -542,9 +557,10 @@ function buildSaleFromForm(id, product, quantity) {
     quantity,
     date: els.saleDate.value,
     customer: els.customerName.value.trim(),
-    status: els.paymentStatus.value === "pending" ? "pending" : "paid",
-    dueDate: els.paymentStatus.value === "pending" ? els.dueDate.value : "",
-    paidDate: els.paymentStatus.value === "paid" ? els.saleDate.value : ""
+    status: isPendingPaymentType(els.paymentStatus.value) ? "pending" : "paid",
+    paymentType: els.paymentStatus.value,
+    dueDate: isPendingPaymentType(els.paymentStatus.value) ? els.dueDate.value : "",
+    paidDate: els.paymentStatus.value === "paid-now" ? els.saleDate.value : ""
   };
 }
 
@@ -567,7 +583,7 @@ function handleSaleSubmit(event) {
   const availableStock = product ? product.stock + (oldSale && oldSale.productId === product.id ? Number(oldSale.quantity) : 0) : 0;
   if (!product) return showToast("Cadastre um produto primeiro.");
   if (quantity > availableStock) return showToast("Não tem essa quantidade em estoque.");
-  if (els.paymentStatus.value === "pending" && !els.customerName.value.trim()) return showToast("Informe o nome de quem ficará no vale.");
+  if (isPendingPaymentType(els.paymentStatus.value) && !els.customerName.value.trim()) return showToast("Informe o nome de quem vai pagar depois.");
   const nextSale = buildSaleFromForm(editingId || uid("sale"), product, quantity);
   logic.applySaleStockChange(state.products, oldSale, nextSale);
   if (oldSale) {
@@ -614,7 +630,7 @@ function editSale(id) {
   els.saleQuantity.value = sale.quantity;
   els.saleDate.value = sale.date;
   els.customerName.value = sale.customer || "";
-  els.paymentStatus.value = sale.status === "pending" ? "pending" : "paid";
+  els.paymentStatus.value = paymentSelectValueForSale(sale);
   els.dueDate.value = sale.dueDate || "";
   els.saleSubmitBtn.textContent = "Atualizar venda";
   els.cancelEditSale.classList.remove("hidden");
@@ -914,6 +930,9 @@ if ("serviceWorker" in navigator) {
 
 if (sessionStorage.getItem(SESSION_KEY) === "sim") showApp();
 else showLogin();
+
+
+
 
 
 

@@ -92,8 +92,8 @@
           <label>Quantidade<input id="saleQuantity" type="number" min="1" step="1" value="1" required></label>
           <label>Data da venda<input id="saleDate" type="date" required></label>
           <label>Cliente<input id="customerName" type="text" placeholder="Nome de quem comprou"></label>
-          <label>Pagamento<select id="paymentStatus"><option value="paid">Pagamento</option><option value="pending">Vale</option></select></label>
-          <label id="dueDateWrap">Data combinada para pagar<input id="dueDate" type="date"></label>
+          <label>Pagamento<select id="paymentStatus"><option value="paid-now">Pago na hora</option><option value="payday">Pagamento</option><option value="voucher">Vale</option></select></label>
+          <label id="dueDateWrap">Data combinada<input id="dueDate" type="date"></label>
           <div class="form-total"><span>Total da venda</span><strong id="salePreview">R$ 0,00</strong></div>
           <div class="form-actions"><button id="saleSubmitBtn" class="primary" type="submit">Salvar venda</button><button id="cancelEditSale" class="secondary hidden" type="button">Cancelar edição</button></div>
         </form>
@@ -105,7 +105,19 @@
         <form id="productForm" class="panel form-grid">
           <input id="editingProductId" type="hidden">
           <label>Nome do produto<input id="productName" type="text" placeholder="Ex.: Café 500g" required></label>
-          <label>Categoria<input id="productCategory" type="text" placeholder="Ex.: Bebidas, doces, higiene" required></label>
+                    <label>Categoria<select id="productCategory" required>
+            <option value="Bebidas">Bebidas</option>
+            <option value="Doces">Doces</option>
+            <option value="Chocolate">Chocolate</option>
+            <option value="Salgadinhos">Salgadinhos</option>
+            <option value="Lanches">Lanches</option>
+            <option value="Bolo">Bolo</option>
+            <option value="Pão">Pão</option>
+            <option value="Biscoitos">Biscoitos</option>
+            <option value="Entrega">Entrega</option>
+            <option value="Evento">Evento</option>
+            <option value="Outros">Outros</option>
+          </select></label>
           <label>Preço que pagou<input id="productCost" type="number" min="0" step="0.01" placeholder="0,00" required></label>
           <label>Preço de venda<input id="productPrice" type="number" min="0" step="0.01" placeholder="0,00" required></label>
           <label>Quantidade em estoque<input id="productStock" type="number" min="0" step="1" placeholder="0" required></label>
@@ -190,6 +202,8 @@
   <script src="app.js"></script>
 </body>
 </html>
+
+
 
 
 
