@@ -226,7 +226,7 @@ function renderProductOptions() {
 
 function renderProducts() {
   if (!state.products.length) {
-    els.productsTable.innerHTML = '<tr><td colspan="6">Nenhum produto cadastrado ainda.</td></tr>';
+    els.productsTable.innerHTML = '<tr><td colspan="7">Nenhum produto cadastrado ainda.</td></tr>';
     return;
   }
   els.productsTable.innerHTML = state.products.map(product => {
@@ -238,6 +238,7 @@ function renderProducts() {
         <td>${money(product.cost)}</td>
         <td>${money(product.price)}</td>
         <td>${money(profit)}</td>
+        <td><span class="profit-percent">${formatPercent(logic.profitPercent(product.cost, product.price))}</span></td>
         <td><span class="${stockClass}">${product.stock}</span></td>
         <td class="actions">
           <button class="secondary" type="button" data-edit-product="${product.id}">Editar</button>
@@ -849,6 +850,8 @@ if ("serviceWorker" in navigator) {
 
 if (sessionStorage.getItem(SESSION_KEY) === "sim") showApp();
 else showLogin();
+
+
 
 
 
