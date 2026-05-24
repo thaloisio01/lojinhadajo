@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = "lojinha-da-jo-cache-v22";
+﻿const CACHE_NAME = "lojinha-da-jo-cache-v23";
 const FILES = ["./", "./index.html", "./styles.css", "./app-logic.js", "./app.js", "./manifest.webmanifest", "./supabase-config.js", "./assets/logo-lojinha.png"];
 
 self.addEventListener("install", event => {
@@ -18,6 +18,7 @@ self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
   event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request)));
 });
+
 
 
 

@@ -344,7 +344,7 @@ td.actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 @media (max-width: 1020px) {
   .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .debt-grid, .shopping-grid, .highlight-grid, .official-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .debt-grid, .shopping-grid, .highlight-grid, .official-grid, .customer-ranking-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 850px) {
@@ -354,11 +354,12 @@ td.actions { display: flex; gap: 8px; flex-wrap: wrap; }
 }
 
 @media (max-width: 620px) {
-  .metrics, .debt-grid, .shopping-grid, .highlight-grid, .official-grid { grid-template-columns: 1fr; }
+  .metrics, .debt-grid, .shopping-grid, .highlight-grid, .official-grid, .customer-ranking-grid { grid-template-columns: 1fr; }
   .topbar { align-items: flex-start; flex-direction: column; }
   .brand-mark { width: 48px; height: 48px; }
   main { padding-top: 16px; }
   .panel, .metric { padding: 14px; }
+  .welcome-panel { align-items: flex-start; flex-direction: column; }
   .tab { min-width: 104px; }
   table { min-width: 620px; }
 }
@@ -366,5 +367,114 @@ td.actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 
 
+
+
+
+.welcome-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px;
+  margin-bottom: 18px;
+  border: 1px solid #e8bbbb;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #fff8f5 0%, #f8e7e2 100%);
+  box-shadow: var(--shadow);
+}
+
+.welcome-panel h3 {
+  margin: 4px 0 0;
+  color: var(--brand-dark);
+  font-size: clamp(1.25rem, 2.5vw, 1.8rem);
+}
+
+.welcome-chip {
+  flex: 0 0 auto;
+  padding: 10px 12px;
+  border-radius: 999px;
+  background: var(--brand);
+  color: #fff;
+  font-weight: 800;
+}
+
+.customer-ranking-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.customer-card {
+  border-top: 4px solid var(--brand);
+}
+
+.login-screen {
+  position: relative;
+  overflow: hidden;
+}
+
+.login-screen::before,
+.login-screen::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  display: none;
+}
+
+body[data-season="june"] .login-screen::before {
+  display: block;
+  top: 0;
+  left: -20px;
+  right: -20px;
+  height: 72px;
+  background: repeating-linear-gradient(135deg, #f5c542 0 18px, #3aa66f 18px 36px, #e75757 36px 54px, #2e86de 54px 72px);
+  clip-path: polygon(0 0, 100% 0, 100% 48%, 95% 100%, 90% 48%, 85% 100%, 80% 48%, 75% 100%, 70% 48%, 65% 100%, 60% 48%, 55% 100%, 50% 48%, 45% 100%, 40% 48%, 35% 100%, 30% 48%, 25% 100%, 20% 48%, 15% 100%, 10% 48%, 5% 100%, 0 48%);
+  opacity: 0.95;
+}
+
+body[data-season="birthday"] .login-screen::before,
+body[data-season="birthday-day"] .login-screen::before {
+  display: block;
+  inset: 0;
+  background: radial-gradient(circle at 18% 18%, #ffd1dc 0 28px, transparent 30px), radial-gradient(circle at 82% 22%, #f7c948 0 24px, transparent 26px), radial-gradient(circle at 70% 78%, #94d2bd 0 30px, transparent 32px);
+  opacity: 0.55;
+}
+
+body[data-season="halloween"] .login-screen::before {
+  display: block;
+  inset: 0;
+  background: radial-gradient(circle at 20% 20%, rgba(217,119,6,.45), transparent 18%), radial-gradient(circle at 80% 70%, rgba(30,30,30,.3), transparent 20%);
+}
+
+body[data-season="christmas"] .login-screen::before {
+  display: block;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(20,83,45,.32), transparent 45%), radial-gradient(circle at 75% 20%, rgba(212,166,42,.45), transparent 18%);
+}
+
+.season-decor {
+  position: relative;
+  z-index: 1;
+  margin: 6px 0 4px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fff7f5;
+  color: var(--brand-dark);
+  font-weight: 800;
+  text-align: center;
+}
+
+.season-message {
+  position: relative;
+  z-index: 1;
+  margin: 0 0 10px;
+  color: var(--brand-dark);
+  font-weight: 800;
+  text-align: center;
+}
+
+body[data-season="birthday-day"] .season-message {
+  font-size: 1.18rem;
+}
 
 

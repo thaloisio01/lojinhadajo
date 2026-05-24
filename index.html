@@ -13,6 +13,8 @@
     <form id="loginForm" class="login-card">
       <p class="eyebrow">acesso da lojinha</p>
       <h1 id="loginTitle">Lojinha da Jô</h1>
+      <div id="loginSeasonDecor" class="season-decor hidden" aria-hidden="true"></div>
+      <p id="loginSeasonMessage" class="season-message hidden"></p>
       <label>Login
         <input id="loginUser" type="text" autocomplete="username" required>
       </label>
@@ -46,7 +48,7 @@
       <button class="tab" data-screen="products" type="button"><span class="tab-icon">#</span>Produtos</button>
       <button class="tab" data-screen="purchases" type="button"><span class="tab-icon">+</span>Compras</button>
       <button class="tab" data-screen="closing" type="button"><span class="tab-icon">✓</span>Fechamento</button>
-      <button class="tab" data-screen="shopping" type="button"><span class="tab-icon">!</span>Lista</button>
+      <button class="tab" data-screen="shopping" type="button"><span class="tab-icon">!</span>Lista de compras</button>
       <button class="tab" data-screen="debts" type="button"><span class="tab-icon">?</span>A receber</button>
       <button class="tab" data-screen="reports" type="button"><span class="tab-icon">%</span>Relatórios</button>
     </nav>
@@ -60,6 +62,13 @@
           </div>
           <span id="todayLabel"></span>
         </div>
+        <section class="welcome-panel">
+          <div>
+            <p class="eyebrow accent-text">bem-vinda</p>
+            <h3 id="dashboardGreeting">Bom dia, Mãe! Veja como está sua lojinha hoje.</h3>
+          </div>
+          <span class="welcome-chip">Lojinha da Jô</span>
+        </section>
         <div class="metrics">
           <article class="metric"><i class="metric-icon">R$</i><span>Vendido hoje</span><strong id="todayRevenue">R$ 0,00</strong></article>
           <article class="metric"><i class="metric-icon">%</i><span>Lucro hoje</span><strong id="todayProfit">R$ 0,00</strong></article>
@@ -82,7 +91,20 @@
             <article class="highlight-card"><span>Maior lucro</span><strong id="monthTopProfit">Nenhuma venda no mês</strong><small id="monthTopProfitDetail">-</small></article>
             <article class="highlight-card"><span>Parado no estoque</span><strong id="monthIdleStock">Tudo girando bem</strong><small id="monthIdleStockDetail">-</small></article>
           </div>
-        </section>        <div class="two-columns">
+        </section>
+        <section class="panel accent-panel">
+          <div class="panel-title-row">
+            <h3>Ranking dos clientes</h3>
+            <span class="soft-label">Quem movimenta a lojinha</span>
+          </div>
+          <div class="customer-ranking-grid">
+            <article class="highlight-card customer-card"><span>Cliente VIP da Jô</span><strong id="customerVipName">Sem vendas ainda</strong><small id="customerVipDetail">-</small></article>
+            <article class="highlight-card customer-card"><span>Top comprador da semana</span><strong id="weeklyBuyerName">Sem vendas na semana</strong><small id="weeklyBuyerDetail">-</small></article>
+            <article class="highlight-card customer-card"><span>Maior valor em aberto</span><strong id="topDebtorName">Ninguém devendo</strong><small id="topDebtorDetail">-</small></article>
+            <article class="highlight-card customer-card"><span>Pagamento certinho</span><strong id="onTimePayerName">Sem histórico ainda</strong><small id="onTimePayerDetail">-</small></article>
+          </div>
+        </section>
+        <div class="two-columns">
           <section class="panel accent-panel">
             <h3>Produtos acabando</h3>
             <div id="lowStockList" class="list empty-state">Nenhum produto cadastrado ainda.</div>
@@ -93,13 +115,13 @@
           </section>
         </div>
       </section>
-
       <section id="sale" class="screen" aria-labelledby="saleTitle">
         <div class="section-heading"><h2 id="saleTitle">Registrar venda</h2></div>
         <form id="saleForm" class="panel form-grid">
           <input id="editingSaleId" type="hidden">
           <label>Produto<select id="saleProduct" required></select></label>
           <label>Quantidade<input id="saleQuantity" type="number" min="1" step="1" value="1" required></label>
+          <label>Desconto R$<input id="saleDiscount" type="number" min="0" step="0.01" value="0"></label>
           <label>Data da venda<input id="saleDate" type="date" required></label>
           <label>Cliente<input id="customerName" type="text" placeholder="Nome de quem comprou"></label>
           <label>Pagamento<select id="paymentStatus"><option value="paid-now">Pago na hora</option><option value="payday">Pagamento</option><option value="voucher">Vale</option></select></label>
@@ -213,6 +235,8 @@
   <script src="app.js"></script>
 </body>
 </html>
+
+
 
 
 

@@ -24,11 +24,14 @@ const els = {
   loginUser: document.getElementById("loginUser"),
   loginPassword: document.getElementById("loginPassword"),
   loginError: document.getElementById("loginError"),
+  loginSeasonDecor: document.getElementById("loginSeasonDecor"),
+  loginSeasonMessage: document.getElementById("loginSeasonMessage"),
   logoutBtn: document.getElementById("logoutBtn"),
   syncStatus: document.getElementById("syncStatus"),
   tabs: document.querySelectorAll(".tab"),
   screens: document.querySelectorAll(".screen"),
   todayLabel: document.getElementById("todayLabel"),
+  dashboardGreeting: document.getElementById("dashboardGreeting"),
   monthRevenue: document.getElementById("monthRevenue"),
   monthProfit: document.getElementById("monthProfit"),
   monthSalesCount: document.getElementById("monthSalesCount"),
@@ -39,6 +42,14 @@ const els = {
   monthTopProfitDetail: document.getElementById("monthTopProfitDetail"),
   monthIdleStock: document.getElementById("monthIdleStock"),
   monthIdleStockDetail: document.getElementById("monthIdleStockDetail"),
+  customerVipName: document.getElementById("customerVipName"),
+  customerVipDetail: document.getElementById("customerVipDetail"),
+  weeklyBuyerName: document.getElementById("weeklyBuyerName"),
+  weeklyBuyerDetail: document.getElementById("weeklyBuyerDetail"),
+  topDebtorName: document.getElementById("topDebtorName"),
+  topDebtorDetail: document.getElementById("topDebtorDetail"),
+  onTimePayerName: document.getElementById("onTimePayerName"),
+  onTimePayerDetail: document.getElementById("onTimePayerDetail"),
   productForm: document.getElementById("productForm"),
   editingProductId: document.getElementById("editingProductId"),
   productName: document.getElementById("productName"),
@@ -55,6 +66,7 @@ const els = {
   cancelEditSale: document.getElementById("cancelEditSale"),
   saleProduct: document.getElementById("saleProduct"),
   saleQuantity: document.getElementById("saleQuantity"),
+  saleDiscount: document.getElementById("saleDiscount"),
   saleDate: document.getElementById("saleDate"),
   customerName: document.getElementById("customerName"),
   paymentStatus: document.getElementById("paymentStatus"),
@@ -195,8 +207,52 @@ function setScreen(screenId) {
   els.screens.forEach(screen => screen.classList.toggle("active", screen.id === screenId));
 }
 
+function dashboardGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Bom dia, Mãe! Veja como está sua lojinha hoje.";
+  if (hour < 18) return "Boa tarde, Mãe! Veja como está sua lojinha hoje.";
+  return "Boa noite, Mãe! Veja como está sua lojinha hoje.";
+}
+
+function applySeasonalTheme() {
+  const info = logic.seasonalThemeInfo(todayISO());
+  document.body.dataset.season = info.season;
+  if (!els.loginSeasonDecor || !els.loginSeasonMessage) return;
+  const decorLabels = {
+    june: "Bandeirinhas de festa junina",
+    birthday: "Balões de aniversário",
+    "birthday-day": "Feliz aniversário, mãe!!!",
+    halloween: "Outubro especial da Lojinha",
+    christmas: "Natal da Lojinha da Jô"
+  };
+  const hasTheme = info.season !== "normal";
+  els.loginSeasonDecor.classList.toggle("hidden", !hasTheme);
+  els.loginSeasonMessage.classList.toggle("hidden", !hasTheme);
+  els.loginSeasonDecor.textContent = decorLabels[info.season] || "";
+  els.loginSeasonMessage.textContent = info.message;
+}
+
+function renderRankingCard(rank, nameEl, detailEl, emptyName, detailBuilder) {
+  if (!nameEl || !detailEl) return;
+  if (!rank) {
+    nameEl.textContent = emptyName;
+    detailEl.textContent = "-";
+    return;
+  }
+  nameEl.textContent = rank.customer;
+  detailEl.textContent = detailBuilder(rank);
+}
+
+function renderCustomerRankings() {
+  const rankings = logic.customerRankings(state.sales, todayISO());
+  renderRankingCard(rankings.monthVip, els.customerVipName, els.customerVipDetail, "Sem vendas ainda", rank => `${money(rank.total)} no mês - ${rank.salesCount} venda(s)`);
+  renderRankingCard(rankings.weekBuyer, els.weeklyBuyerName, els.weeklyBuyerDetail, "Sem vendas na semana", rank => `${money(rank.total)} nesta semana - ${rank.salesCount} venda(s)`);
+  renderRankingCard(rankings.topDebtor, els.topDebtorName, els.topDebtorDetail, "Ninguém devendo", rank => `${money(rank.total)} em aberto - prazo ${formatDate(rank.nextDueDate)}`);
+  renderRankingCard(rankings.onTimePayer, els.onTimePayerName, els.onTimePayerDetail, "Sem histórico ainda", rank => `${rank.salesCount} pagamento(s) no prazo - ${money(rank.total)}`);
+}
 function render() {
   saveState();
+  applySeasonalTheme();
   renderDates();
   renderProductOptions();
   renderProducts();
@@ -457,6 +513,7 @@ function renderDashboard() {
   const pendingAmount = sum(state.sales.filter(sale => sale.status === "pending"), sale => saleTotals(sale).revenue);
   const stockCost = sum(state.products, product => product.cost * product.stock);
   const month = logic.monthStats(state.sales, today);
+  els.dashboardGreeting.textContent = dashboardGreeting();
   document.getElementById("todayRevenue").textContent = money(todayRevenue);
   document.getElementById("todayProfit").textContent = money(todayProfit);
   document.getElementById("pendingAmount").textContent = money(pendingAmount);
@@ -488,6 +545,8 @@ function renderDashboard() {
     els.monthIdleStock.textContent = "Tudo girando bem";
     els.monthIdleStockDetail.textContent = "Nenhum produto parado com estoque";
   }
+
+  renderCustomerRankings();
 
   const lowStock = state.products.filter(product => product.stock <= product.minStock);
   document.getElementById("lowStockList").innerHTML = lowStock.length ? lowStock.map(product => `
@@ -561,7 +620,8 @@ function renderReports() {
 function updateSalePreview() {
   const product = getProduct(els.saleProduct.value);
   const quantity = Number(els.saleQuantity.value || 0);
-  els.salePreview.textContent = money(product ? product.price * quantity : 0);
+  const discount = Number(els.saleDiscount.value || 0);
+  els.salePreview.textContent = money(product ? logic.saleTotals({ unitPrice: product.price, unitCost: product.cost, quantity, discount }).revenue : 0);
   els.dueDateWrap.classList.toggle("hidden", !isPendingPaymentType(els.paymentStatus.value));
   if (isPendingPaymentType(els.paymentStatus.value) && !els.dueDate.value) els.dueDate.value = todayISO();
 }
@@ -623,6 +683,7 @@ function buildSaleFromForm(id, product, quantity) {
     unitCost: product.cost,
     unitPrice: product.price,
     quantity,
+    discount: Number(els.saleDiscount.value || 0),
     date: els.saleDate.value,
     customer: els.customerName.value.trim(),
     status: isPendingPaymentType(els.paymentStatus.value) ? "pending" : "paid",
@@ -636,6 +697,7 @@ function resetSaleForm() {
   els.saleForm.reset();
   els.editingSaleId.value = "";
   els.saleQuantity.value = 1;
+  els.saleDiscount.value = 0;
   els.saleDate.value = todayISO();
   els.saleSubmitBtn.textContent = "Salvar venda";
   els.cancelEditSale.classList.add("hidden");
@@ -651,6 +713,7 @@ function handleSaleSubmit(event) {
   const availableStock = product ? product.stock + (oldSale && oldSale.productId === product.id ? Number(oldSale.quantity) : 0) : 0;
   if (!product) return showToast("Cadastre um produto primeiro.");
   if (quantity > availableStock) return showToast("Não tem essa quantidade em estoque.");
+  if (Number(els.saleDiscount.value || 0) > product.price * quantity) return showToast("O desconto não pode ser maior que o total da venda.");
   if (isPendingPaymentType(els.paymentStatus.value) && !els.customerName.value.trim()) return showToast("Informe o nome de quem vai pagar depois.");
   const nextSale = buildSaleFromForm(editingId || uid("sale"), product, quantity);
   logic.applySaleStockChange(state.products, oldSale, nextSale);
@@ -696,6 +759,7 @@ function editSale(id) {
   els.editingSaleId.value = sale.id;
   els.saleProduct.value = sale.productId;
   els.saleQuantity.value = sale.quantity;
+  els.saleDiscount.value = sale.discount || 0;
   els.saleDate.value = sale.date;
   els.customerName.value = sale.customer || "";
   els.paymentStatus.value = paymentSelectValueForSale(sale);
@@ -995,6 +1059,7 @@ els.saleForm.addEventListener("submit", handleSaleSubmit);
 els.purchaseForm.addEventListener("submit", handlePurchaseSubmit);
 els.saleProduct.addEventListener("change", updateSalePreview);
 els.saleQuantity.addEventListener("input", updateSalePreview);
+els.saleDiscount.addEventListener("input", updateSalePreview);
 els.cancelEditSale.addEventListener("click", resetSaleForm);
 els.paymentStatus.addEventListener("change", updateSalePreview);
 els.purchaseProduct.addEventListener("change", () => {
@@ -1060,12 +1125,19 @@ if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => navigator.serviceWorker.register("service-worker.js"));
 }
 
+applySeasonalTheme();
 if (sessionStorage.getItem(SESSION_KEY) === "sim") {
   showApp();
   initSupabaseSync();
 } else {
   showLogin();
 }
+
+
+
+
+
+
 
 
 

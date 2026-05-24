@@ -22,9 +22,13 @@
   function saleTotals(sale) {
     const price = sale.unitPrice ?? sale.productSnapshot?.price ?? 0;
     const cost = sale.unitCost ?? sale.productSnapshot?.cost ?? 0;
+    const quantity = Number(sale.quantity || 0);
+    const gross = Number(price || 0) * quantity;
+    const discount = Math.min(Math.max(Number(sale.discount || 0), 0), gross);
+    const revenue = gross - discount;
     return {
-      revenue: price * sale.quantity,
-      profit: (price - cost) * sale.quantity
+      revenue,
+      profit: revenue - (Number(cost || 0) * quantity)
     };
   }
 
@@ -154,6 +158,74 @@
       debtors: Array.from(debtorMap.values()).sort((a, b) => b.total - a.total || a.customer.localeCompare(b.customer))
     };
   }
+  function addCustomerTotal(map, customer, sale, extra) {
+    const name = String(customer || "").trim();
+    if (!name) return;
+    const current = map.get(name) || { customer: name, total: 0, salesCount: 0, nextDueDate: "" };
+    current.total += saleTotals(sale).revenue;
+    current.salesCount += 1;
+    if (extra?.dueDate && (!current.nextDueDate || extra.dueDate < current.nextDueDate)) current.nextDueDate = extra.dueDate;
+    map.set(name, current);
+  }
+
+  function bestCustomer(map, includeDueDate) {
+    const best = Array.from(map.values()).sort((a, b) => b.total - a.total || b.salesCount - a.salesCount || a.customer.localeCompare(b.customer))[0] || null;
+    if (!best) return null;
+    const result = { customer: best.customer, total: best.total, salesCount: best.salesCount };
+    if (includeDueDate) result.nextDueDate = best.nextDueDate;
+    return result;
+  }
+
+  function weekRange(referenceDate) {
+    const date = new Date(`${referenceDate}T00:00:00`);
+    const day = date.getDay() || 7;
+    const start = new Date(date);
+    start.setDate(date.getDate() - day + 1);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    return {
+      start: start.toISOString().slice(0, 10),
+      end: end.toISOString().slice(0, 10)
+    };
+  }
+
+  function customerRankings(sales, referenceDate) {
+    const month = referenceDate.slice(0, 7);
+    const week = weekRange(referenceDate);
+    const monthMap = new Map();
+    const weekMap = new Map();
+    const debtorMap = new Map();
+    const onTimeMap = new Map();
+
+    sales.forEach(sale => {
+      const customer = sale.customer;
+      if (!String(customer || "").trim()) return;
+      if (sale.date && sale.date.slice(0, 7) === month) addCustomerTotal(monthMap, customer, sale);
+      if (sale.date && sale.date >= week.start && sale.date <= week.end) addCustomerTotal(weekMap, customer, sale);
+      if (sale.status === "pending") addCustomerTotal(debtorMap, customer, sale, { dueDate: sale.dueDate || "" });
+      if (sale.status === "paid-later" && sale.dueDate && sale.paidDate && sale.paidDate <= sale.dueDate) {
+        addCustomerTotal(onTimeMap, customer, sale);
+      }
+    });
+
+    return {
+      monthVip: bestCustomer(monthMap, false),
+      weekBuyer: bestCustomer(weekMap, false),
+      topDebtor: bestCustomer(debtorMap, true),
+      onTimePayer: bestCustomer(onTimeMap, false)
+    };
+  }
+  function seasonalThemeInfo(date) {
+    const [, monthText, dayText] = String(date || "").split("-");
+    const month = Number(monthText || 0);
+    const day = Number(dayText || 0);
+    if (month === 6) return { season: "june", message: "Festa junina na Lojinha da Jô" };
+    if (month === 7 && day === 25) return { season: "birthday-day", message: "Feliz aniversário, mãe!!!" };
+    if (month === 7) return { season: "birthday", message: "Mês de aniversário da Jô" };
+    if (month === 10) return { season: "halloween", message: "Outubro especial da Lojinha" };
+    if (month === 12) return { season: "christmas", message: "Natal da Lojinha da Jô" };
+    return { season: "normal", message: "" };
+  }
   function applySaleStockChange(products, oldSale, newSale) {
     if (oldSale) {
       const oldProduct = products.find(product => product.id === oldSale.productId);
@@ -178,8 +250,11 @@
       }));
   }
 
-  return { saleTotals, normalizeProductName, hasDuplicateProductName, profitPercent, monthStats, monthHighlights, closingStats, monthlyClosingStats, monthlyBusinessSummary, applySaleStockChange, shoppingList };
+  return { saleTotals, normalizeProductName, hasDuplicateProductName, profitPercent, monthStats, monthHighlights, customerRankings, closingStats, monthlyClosingStats, monthlyBusinessSummary, seasonalThemeInfo, applySaleStockChange, shoppingList };
 });
+
+
+
 
 
 
