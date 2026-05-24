@@ -236,7 +236,7 @@ function renderProducts() {
   }
   els.productsTable.innerHTML = state.products.map(product => {
     const profit = product.price - product.cost;
-    const stockClass = product.stock < product.minStock ? "badge late" : "badge paid";
+    const stockClass = product.stock <= product.minStock ? "badge late" : "badge paid";
     return `
       <tr>
         <td><strong>${escapeHTML(product.name)}</strong></td>
@@ -289,7 +289,7 @@ function paymentSelectValueForSale(sale) {
 function renderSales() {
   const recent = [...state.sales].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8);
   if (!recent.length) {
-    els.recentSalesTable.innerHTML = '<tr><td colspan="6">Nenhuma venda registrada ainda.</td></tr>';
+    els.recentSalesTable.innerHTML = '<tr><td colspan="7">Nenhuma venda registrada ainda.</td></tr>';
     return;
   }
   els.recentSalesTable.innerHTML = recent.map(sale => {
@@ -425,7 +425,7 @@ function renderDashboard() {
   els.monthSalesCount.textContent = month.salesCount;
   els.monthPendingAmount.textContent = money(month.pendingTotal);
 
-  const lowStock = state.products.filter(product => product.stock < product.minStock);
+  const lowStock = state.products.filter(product => product.stock <= product.minStock);
   document.getElementById("lowStockList").innerHTML = lowStock.length ? lowStock.map(product => `
     <div class="list-item"><div><strong>${escapeHTML(product.name)}</strong><small>Comprar mais quando puder</small></div><span class="badge late">${product.stock}</span></div>
   `).join("") : "Nenhum produto acabando agora.";
@@ -996,6 +996,7 @@ if (sessionStorage.getItem(SESSION_KEY) === "sim") {
 } else {
   showLogin();
 }
+
 
 
 
