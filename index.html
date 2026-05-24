@@ -72,7 +72,17 @@
           <article class="metric month-metric"><i class="metric-icon">V</i><span>Quantidade de vendas</span><strong id="monthSalesCount">0</strong></article>
           <article class="metric month-metric"><i class="metric-icon">P</i><span>Valor pendente</span><strong id="monthPendingAmount">R$ 0,00</strong></article>
         </div>
-        <div class="two-columns">
+        <section class="panel accent-panel">
+          <div class="panel-title-row">
+            <h3>Destaques do mês</h3>
+            <span class="soft-label">Produtos que merecem atenção</span>
+          </div>
+          <div class="highlight-grid">
+            <article class="highlight-card"><span>Mais vendido</span><strong id="monthTopSelling">Nenhuma venda no mês</strong><small id="monthTopSellingDetail">-</small></article>
+            <article class="highlight-card"><span>Maior lucro</span><strong id="monthTopProfit">Nenhuma venda no mês</strong><small id="monthTopProfitDetail">-</small></article>
+            <article class="highlight-card"><span>Parado no estoque</span><strong id="monthIdleStock">Tudo girando bem</strong><small id="monthIdleStockDetail">-</small></article>
+          </div>
+        </section>        <div class="two-columns">
           <section class="panel accent-panel">
             <h3>Produtos acabando</h3>
             <div id="lowStockList" class="list empty-state">Nenhum produto cadastrado ainda.</div>
@@ -143,7 +153,7 @@
 
       <section id="closing" class="screen" aria-labelledby="closingTitle">
         <div class="section-heading"><h2 id="closingTitle">Fechamento do dia</h2><span id="closingDateLabel"></span></div>
-        <section class="panel filter-panel"><h3>Período do fechamento</h3><div class="form-grid compact-grid"><label>Tipo de fechamento<select id="closingMode"><option value="day">Fechamento do dia</option><option value="month">Fechamento do mês</option></select></label><label id="closingDateWrap">Escolha o dia<input id="closingDate" type="date"></label><label id="closingMonthWrap">Escolha o mês<input id="closingMonth" type="month"></label></div></section>
+        <section class="panel filter-panel"><h3>Período do fechamento</h3><div class="form-grid compact-grid"><label>Tipo de fechamento<select id="closingMode"><option value="day">Fechamento do dia</option><option value="month">Fechamento do mês</option></select></label><label id="closingDateWrap">Escolha o dia<input id="closingDate" type="date"></label><label id="closingMonthWrap">Escolha o mês<input id="closingMonth" type="month"></label><div class="form-actions closing-actions"><button id="generateMonthSummary" class="primary" type="button">Gerar resumo do mês</button></div></div></section>
         <div class="metrics">
           <article class="metric"><i class="metric-icon">R$</i><span id="closingSoldLabel">Vendido no dia</span><strong id="closingSold">R$ 0,00</strong></article>
           <article class="metric"><i class="metric-icon">OK</i><span id="closingReceivedLabel">Recebido no dia</span><strong id="closingReceived">R$ 0,00</strong></article>
@@ -151,6 +161,7 @@
           <article class="metric"><i class="metric-icon">%</i><span>Lucro estimado</span><strong id="closingProfit">R$ 0,00</strong></article>
         </div>
         <section class="panel accent-panel"><h3>Resumo rápido</h3><div id="closingSummary" class="closing-summary"></div></section>
+        <section id="officialMonthSummary" class="panel official-summary hidden"></section>
       </section>
 
       <section id="shopping" class="screen" aria-labelledby="shoppingTitle">
@@ -202,6 +213,7 @@
   <script src="app.js"></script>
 </body>
 </html>
+
 
 
 

@@ -13,6 +13,7 @@ let cloudReady = false;
 let cloudApplying = false;
 let cloudPushTimer = null;
 let lastCloudJson = "";
+let officialMonthSummaryVisible = false;
 
 const logic = window.LojinhaLogic;
 
@@ -32,6 +33,12 @@ const els = {
   monthProfit: document.getElementById("monthProfit"),
   monthSalesCount: document.getElementById("monthSalesCount"),
   monthPendingAmount: document.getElementById("monthPendingAmount"),
+  monthTopSelling: document.getElementById("monthTopSelling"),
+  monthTopSellingDetail: document.getElementById("monthTopSellingDetail"),
+  monthTopProfit: document.getElementById("monthTopProfit"),
+  monthTopProfitDetail: document.getElementById("monthTopProfitDetail"),
+  monthIdleStock: document.getElementById("monthIdleStock"),
+  monthIdleStockDetail: document.getElementById("monthIdleStockDetail"),
   productForm: document.getElementById("productForm"),
   editingProductId: document.getElementById("editingProductId"),
   productName: document.getElementById("productName"),
@@ -77,6 +84,8 @@ const els = {
   closingPending: document.getElementById("closingPending"),
   closingProfit: document.getElementById("closingProfit"),
   closingSummary: document.getElementById("closingSummary"),
+  generateMonthSummary: document.getElementById("generateMonthSummary"),
+  officialMonthSummary: document.getElementById("officialMonthSummary"),
   shoppingList: document.getElementById("shoppingList"),
   shoppingCountLabel: document.getElementById("shoppingCountLabel"),
   debtsTable: document.getElementById("debtsTable"),
@@ -389,8 +398,40 @@ function renderClosing() {
     <div class="summary-line"><span>Entrou no caixa</span><strong>${money(stats.receivedTotal)}</strong></div>
     <div class="summary-line"><span>Ficou para receber</span><strong>${money(stats.pendingTotal)}</strong></div>
     <div class="summary-line"><span>Lucro estimado das vendas ${isMonth ? "do mês" : "do dia"}</span><strong>${money(stats.estimatedProfit)}</strong></div>`;
+  renderOfficialMonthSummary(isMonth, period, periodLabel);
 }
 
+function renderOfficialMonthSummary(isMonth, period, periodLabel) {
+  if (!els.officialMonthSummary) return;
+  if (!officialMonthSummaryVisible || !isMonth) {
+    els.officialMonthSummary.classList.add("hidden");
+    return;
+  }
+
+  const summary = logic.monthlyBusinessSummary(state.sales, state.purchases, period);
+  const debtors = summary.debtors.length ? summary.debtors.map(debtor => `
+    <div class="summary-line debtor-summary"><span>${escapeHTML(debtor.customer)}<small>${debtor.salesCount} venda(s), prazo ${formatDate(debtor.nextDueDate)}</small></span><strong>${money(debtor.total)}</strong></div>
+  `).join("") : '<div class="summary-line"><span>Lista de devedores</span><strong>Ninguém devendo neste mês</strong></div>';
+
+  els.officialMonthSummary.classList.remove("hidden");
+  els.officialMonthSummary.innerHTML = `
+    <div class="panel-title-row">
+      <div>
+        <p class="eyebrow accent-text">resumo oficial</p>
+        <h3>Fechamento de ${periodLabel}</h3>
+      </div>
+      <span class="soft-label">Gerado agora</span>
+    </div>
+    <div class="official-grid">
+      <div class="summary-line"><span>Vendido no mês</span><strong>${money(summary.soldTotal)}</strong></div>
+      <div class="summary-line"><span>Lucro estimado</span><strong>${money(summary.estimatedProfit)}</strong></div>
+      <div class="summary-line"><span>Pendente para receber</span><strong>${money(summary.pendingTotal)}</strong></div>
+      <div class="summary-line"><span>Compras feitas</span><strong>${money(summary.purchasesTotal)}</strong></div>
+      <div class="summary-line balance-line"><span>Saldo estimado</span><strong>${money(summary.estimatedBalance)}</strong></div>
+    </div>
+    <h4>Lista de devedores do mês</h4>
+    <div class="closing-summary">${debtors}</div>`;
+}
 function renderShoppingList() {
   if (!els.shoppingList) return;
   const list = logic.shoppingList(state.products);
@@ -424,6 +465,29 @@ function renderDashboard() {
   els.monthProfit.textContent = money(month.profit);
   els.monthSalesCount.textContent = month.salesCount;
   els.monthPendingAmount.textContent = money(month.pendingTotal);
+
+  const highlights = logic.monthHighlights(state.sales, state.products, today.slice(0, 7));
+  if (highlights.topSelling) {
+    els.monthTopSelling.textContent = highlights.topSelling.name;
+    els.monthTopSellingDetail.textContent = `${highlights.topSelling.quantity} un. vendida(s) - ${money(highlights.topSelling.total)}`;
+  } else {
+    els.monthTopSelling.textContent = "Nenhuma venda no mês";
+    els.monthTopSellingDetail.textContent = "-";
+  }
+  if (highlights.topProfit) {
+    els.monthTopProfit.textContent = highlights.topProfit.name;
+    els.monthTopProfitDetail.textContent = `${money(highlights.topProfit.profit)} de lucro - ${highlights.topProfit.quantity} un.`;
+  } else {
+    els.monthTopProfit.textContent = "Nenhuma venda no mês";
+    els.monthTopProfitDetail.textContent = "-";
+  }
+  if (highlights.idleStock) {
+    els.monthIdleStock.textContent = highlights.idleStock.name;
+    els.monthIdleStockDetail.textContent = `${highlights.idleStock.stock} em estoque - ${money(highlights.idleStock.stockValue)} parado`;
+  } else {
+    els.monthIdleStock.textContent = "Tudo girando bem";
+    els.monthIdleStockDetail.textContent = "Nenhum produto parado com estoque";
+  }
 
   const lowStock = state.products.filter(product => product.stock <= product.minStock);
   document.getElementById("lowStockList").innerHTML = lowStock.length ? lowStock.map(product => `
@@ -946,6 +1010,12 @@ els.reportEnd.addEventListener("input", renderReports);
 els.closingMode.addEventListener("change", renderClosing);
 els.closingDate.addEventListener("input", renderClosing);
 els.closingMonth.addEventListener("input", renderClosing);
+els.generateMonthSummary.addEventListener("click", () => {
+  officialMonthSummaryVisible = true;
+  els.closingMode.value = "month";
+  if (!els.closingMonth.value) els.closingMonth.value = todayISO().slice(0, 7);
+  renderClosing();
+});
 els.recentSalesTable.addEventListener("click", event => {
   const editId = event.target.dataset.editSale;
   const deleteId = event.target.dataset.deleteSale;
@@ -996,6 +1066,8 @@ if (sessionStorage.getItem(SESSION_KEY) === "sim") {
 } else {
   showLogin();
 }
+
+
 
 
 

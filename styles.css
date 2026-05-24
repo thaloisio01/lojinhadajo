@@ -244,6 +244,72 @@ input:focus, select:focus { outline: 3px solid rgba(127, 29, 29, 0.20); border-c
 .closing-summary { display: grid; gap: 12px; }
 .summary-line { padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #fffdfa; }
 
+
+.panel-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.soft-label {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.highlight-grid, .official-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.highlight-card {
+  display: grid;
+  gap: 8px;
+  min-height: 118px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #fffdfb 0%, #fff6f4 100%);
+}
+
+.highlight-card span {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.highlight-card strong {
+  color: var(--brand-dark);
+  font-size: 1.2rem;
+}
+
+.highlight-card small, .debtor-summary small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.closing-actions {
+  align-self: end;
+  margin: 0;
+}
+
+.official-summary {
+  border-top: 4px solid var(--gold);
+}
+
+.official-summary h4 {
+  margin: 16px 0 10px;
+}
+
+.balance-line {
+  background: var(--brand-soft);
+  border-color: #e8bbbb;
+}
 .table-wrap { width: 100%; overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; min-width: 680px; }
 th, td { padding: 12px 10px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: middle; }
@@ -278,7 +344,7 @@ td.actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 @media (max-width: 1020px) {
   .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .debt-grid, .shopping-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .debt-grid, .shopping-grid, .highlight-grid, .official-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 850px) {
@@ -288,7 +354,7 @@ td.actions { display: flex; gap: 8px; flex-wrap: wrap; }
 }
 
 @media (max-width: 620px) {
-  .metrics, .debt-grid, .shopping-grid { grid-template-columns: 1fr; }
+  .metrics, .debt-grid, .shopping-grid, .highlight-grid, .official-grid { grid-template-columns: 1fr; }
   .topbar { align-items: flex-start; flex-direction: column; }
   .brand-mark { width: 48px; height: 48px; }
   main { padding-top: 16px; }
@@ -296,6 +362,8 @@ td.actions { display: flex; gap: 8px; flex-wrap: wrap; }
   .tab { min-width: 104px; }
   table { min-width: 620px; }
 }
+
+
 
 
 
