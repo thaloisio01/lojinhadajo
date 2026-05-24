@@ -15,6 +15,12 @@
       .toLowerCase();
   }
 
+
+  function filterProducts(products, query) {
+    const normalizedQuery = normalizeProductName(query);
+    if (!normalizedQuery) return products.slice();
+    return products.filter(product => normalizeProductName(product.name).includes(normalizedQuery));
+  }
   function hasDuplicateProductName(products, name, currentId) {
     const normalized = normalizeProductName(name);
     return products.some(product => product.id !== currentId && normalizeProductName(product.name) === normalized);
@@ -37,6 +43,18 @@
   }
 
 
+  function cartTotals(items, discount) {
+    const gross = sum(items, item => Number(item.unitPrice ?? item.productSnapshot?.price ?? 0) * Number(item.quantity || 0));
+    const cost = sum(items, item => Number(item.unitCost ?? item.productSnapshot?.cost ?? 0) * Number(item.quantity || 0));
+    const safeDiscount = Math.min(Math.max(Number(discount || 0), 0), gross);
+    const revenue = gross - safeDiscount;
+    return {
+      gross,
+      revenue,
+      profit: revenue - cost,
+      discount: safeDiscount
+    };
+  }
   function profitPercent(cost, price) {
     const paid = Number(cost || 0);
     const sale = Number(price || 0);
@@ -92,6 +110,25 @@
     };
   }
 
+  function previousMonth(month) {
+    const [yearText, monthText] = String(month).split("-");
+    const date = new Date(Number(yearText), Number(monthText) - 2, 1);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  }
+
+  function monthComparison(sales, month) {
+    const current = monthlyClosingStats(sales, month);
+    const previous = monthlyClosingStats(sales, previousMonth(month));
+    const percent = (currentValue, previousValue) => previousValue > 0 ? ((currentValue - previousValue) / previousValue) * 100 : 0;
+    return {
+      revenueDiff: current.soldTotal - previous.soldTotal,
+      revenuePercent: percent(current.soldTotal, previous.soldTotal),
+      profitDiff: current.estimatedProfit - previous.estimatedProfit,
+      profitPercent: percent(current.estimatedProfit, previous.estimatedProfit),
+      current,
+      previous
+    };
+  }
   function monthHighlights(sales, products, month) {
     const salesInMonth = sales.filter(sale => sale.date && sale.date.slice(0, 7) === month);
     const soldByProduct = new Map();
@@ -226,6 +263,36 @@
     if (month === 12) return { season: "christmas", message: "Natal da Lojinha da Jô" };
     return { season: "normal", message: "" };
   }
+  function formatMoneyBR(value) {
+    return Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }).replace(/\u00a0/g, " ");
+  }
+
+  function formatDateBR(date) {
+    if (!date) return "-";
+    const [year, month, day] = String(date).split("-");
+    return `${day}/${month}/${year}`;
+  }
+
+  function salePaymentText(sale) {
+    if (sale.status === "pending") return sale.paymentType === "voucher" ? "Vale" : "Pagamento";
+    if (sale.paymentType === "voucher") return "Vale recebido";
+    if (sale.paymentType === "payday") return "Pagamento recebido";
+    return "Pago na hora";
+  }
+
+  function saleReceiptText(sale) {
+    const totals = saleTotals(sale);
+    const lines = [
+      "Venda registrada com sucesso",
+      `Cliente: ${sale.customer || "Cliente"}`,
+      `Produto: ${sale.productSnapshot?.name || "Produto"}`,
+      `Quantidade: ${Number(sale.quantity || 0)}`,
+      `Total: ${formatMoneyBR(totals.revenue)}`,
+      `Pagamento: ${salePaymentText(sale)}`
+    ];
+    if (sale.status === "pending") lines.push(`Prazo: ${formatDateBR(sale.dueDate)}`);
+    return lines.join("\n");
+  }
   function applySaleStockChange(products, oldSale, newSale) {
     if (oldSale) {
       const oldProduct = products.find(product => product.id === oldSale.productId);
@@ -250,8 +317,13 @@
       }));
   }
 
-  return { saleTotals, normalizeProductName, hasDuplicateProductName, profitPercent, monthStats, monthHighlights, customerRankings, closingStats, monthlyClosingStats, monthlyBusinessSummary, seasonalThemeInfo, applySaleStockChange, shoppingList };
+  return { saleTotals, normalizeProductName, filterProducts, cartTotals, hasDuplicateProductName, profitPercent, monthStats, monthComparison, monthHighlights, customerRankings, closingStats, monthlyClosingStats, monthlyBusinessSummary, seasonalThemeInfo, saleReceiptText, applySaleStockChange, shoppingList };
 });
+
+
+
+
+
 
 
 

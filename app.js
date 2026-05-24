@@ -1,5 +1,6 @@
 ﻿const STORAGE_KEY = "lojinha-da-jo-v1";
 const SESSION_KEY = "lojinha-da-jo-logada";
+const AUTO_BACKUP_KEY = "lojinha-da-jo-auto-backup";
 const LOGIN_USER = "Joelma";
 const LOGIN_PASSWORD = "22111996";
 
@@ -14,6 +15,8 @@ let cloudApplying = false;
 let cloudPushTimer = null;
 let lastCloudJson = "";
 let officialMonthSummaryVisible = false;
+let lastSaleReceiptText = "";
+let saleCart = [];
 
 const logic = window.LojinhaLogic;
 
@@ -32,6 +35,10 @@ const els = {
   screens: document.querySelectorAll(".screen"),
   todayLabel: document.getElementById("todayLabel"),
   dashboardGreeting: document.getElementById("dashboardGreeting"),
+  joTodaySales: document.getElementById("joTodaySales"),
+  joTodayProfit: document.getElementById("joTodayProfit"),
+  joPendingClients: document.getElementById("joPendingClients"),
+  joLowStock: document.getElementById("joLowStock"),
   monthRevenue: document.getElementById("monthRevenue"),
   monthProfit: document.getElementById("monthProfit"),
   monthSalesCount: document.getElementById("monthSalesCount"),
@@ -64,6 +71,8 @@ const els = {
   editingSaleId: document.getElementById("editingSaleId"),
   saleSubmitBtn: document.getElementById("saleSubmitBtn"),
   cancelEditSale: document.getElementById("cancelEditSale"),
+  addToCartBtn: document.getElementById("addToCartBtn"),
+  saleProductSearch: document.getElementById("saleProductSearch"),
   saleProduct: document.getElementById("saleProduct"),
   saleQuantity: document.getElementById("saleQuantity"),
   saleDiscount: document.getElementById("saleDiscount"),
@@ -73,6 +82,14 @@ const els = {
   dueDate: document.getElementById("dueDate"),
   dueDateWrap: document.getElementById("dueDateWrap"),
   salePreview: document.getElementById("salePreview"),
+  saleReceiptPanel: document.getElementById("saleReceiptPanel"),
+  saleReceiptText: document.getElementById("saleReceiptText"),
+  copyReceiptBtn: document.getElementById("copyReceiptBtn"),
+  saleCartPanel: document.getElementById("saleCartPanel"),
+  saleCartTable: document.getElementById("saleCartTable"),
+  cartCountLabel: document.getElementById("cartCountLabel"),
+  cartTotal: document.getElementById("cartTotal"),
+  clearCartBtn: document.getElementById("clearCartBtn"),
   recentSalesTable: document.getElementById("recentSalesTable"),
   purchaseForm: document.getElementById("purchaseForm"),
   purchaseProduct: document.getElementById("purchaseProduct"),
@@ -114,7 +131,9 @@ const els = {
   reportStartWrap: document.getElementById("reportStartWrap"),
   reportEndWrap: document.getElementById("reportEndWrap"),
   reportPeriodLabel: document.getElementById("reportPeriodLabel"),
+  monthComparisonText: document.getElementById("monthComparisonText"),
   backupStatus: document.getElementById("backupStatus"),
+  autoBackupStatus: document.getElementById("autoBackupStatus"),
   exportCsv: document.getElementById("exportCsv"),
   exportJson: document.getElementById("exportJson"),
   importJson: document.getElementById("importJson"),
@@ -137,8 +156,34 @@ function loadState() {
   }
 }
 
+function automaticBackupSnapshot() {
+  try {
+    return JSON.parse(localStorage.getItem(AUTO_BACKUP_KEY) || "null");
+  } catch (error) {
+    return null;
+  }
+}
+
+function saveAutomaticBackup() {
+  try {
+    const snapshot = {
+      savedAt: new Date().toISOString(),
+      data: sanitizedState()
+    };
+    localStorage.setItem(AUTO_BACKUP_KEY, JSON.stringify(snapshot));
+  } catch (error) {
+    // Se o navegador bloquear espaço local, o app continua funcionando e o Supabase ainda tenta sincronizar.
+  }
+}
+
+function formatAutoBackupTime() {
+  const snapshot = automaticBackupSnapshot();
+  if (!snapshot?.savedAt) return "Backup automático ainda não foi feito.";
+  return `Backup automático: ${new Date(snapshot.savedAt).toLocaleString("pt-BR")}`;
+}
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  saveAutomaticBackup();
   if (cloudReady && !cloudApplying) scheduleCloudPush();
 }
 
@@ -209,9 +254,9 @@ function setScreen(screenId) {
 
 function dashboardGreeting() {
   const hour = new Date().getHours();
-  if (hour < 12) return "Bom dia, Mãe! Veja como está sua lojinha hoje.";
-  if (hour < 18) return "Boa tarde, Mãe! Veja como está sua lojinha hoje.";
-  return "Boa noite, Mãe! Veja como está sua lojinha hoje.";
+  if (hour < 12) return "Bom dia, Joelma 🌸";
+  if (hour < 18) return "Boa tarde, Joelma 🌸";
+  return "Boa noite, Joelma 🌸";
 }
 
 function applySeasonalTheme() {
@@ -266,15 +311,20 @@ function renderDates() {
   if (els.closingMonth && !els.closingMonth.value) els.closingMonth.value = todayISO().slice(0, 7);
 }
 
-function fillProductSelect(select, emptyText) {
+function fillProductSelect(select, emptyText, products = state.products) {
   select.innerHTML = "";
   if (!state.products.length) {
     select.innerHTML = `<option value="">${emptyText}</option>`;
     select.disabled = true;
     return;
   }
+  if (!products.length) {
+    select.innerHTML = '<option value="">Nenhum produto encontrado</option>';
+    select.disabled = true;
+    return;
+  }
   select.disabled = false;
-  state.products.forEach(product => {
+  products.forEach(product => {
     const option = document.createElement("option");
     option.value = product.id;
     option.textContent = `${product.name} - estoque: ${product.stock}`;
@@ -283,10 +333,12 @@ function fillProductSelect(select, emptyText) {
 }
 
 function renderProductOptions() {
-  fillProductSelect(els.saleProduct, "Cadastre um produto primeiro");
+  const selectedSaleProduct = els.saleProduct.value;
+  const saleProducts = logic.filterProducts(state.products, els.saleProductSearch.value);
+  fillProductSelect(els.saleProduct, "Cadastre um produto primeiro", saleProducts);
+  if (saleProducts.some(product => product.id === selectedSaleProduct)) els.saleProduct.value = selectedSaleProduct;
   fillProductSelect(els.purchaseProduct, "Cadastre um produto primeiro");
 }
-
 function renderProducts() {
   if (!state.products.length) {
     els.productsTable.innerHTML = '<tr><td colspan="8">Nenhum produto cadastrado ainda.</td></tr>';
@@ -347,7 +399,7 @@ function paymentSelectValueForSale(sale) {
 function renderSales() {
   const recent = [...state.sales].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8);
   if (!recent.length) {
-    els.recentSalesTable.innerHTML = '<tr><td colspan="7">Nenhuma venda registrada ainda.</td></tr>';
+    els.recentSalesTable.innerHTML = '<tr><td colspan="8">Nenhuma venda registrada ainda.</td></tr>';
     return;
   }
   els.recentSalesTable.innerHTML = recent.map(sale => {
@@ -357,7 +409,9 @@ function renderSales() {
     return `
       <tr>
         <td>${formatDate(sale.date)}</td>
+        <td>${escapeHTML(sale.customer || "Cliente")}</td>
         <td>${escapeHTML(sale.productSnapshot.name)}</td>
+        <td>${escapeHTML(sale.productSnapshot.category || "-")}</td>
         <td>${sale.quantity}</td>
         <td>${money(totals.revenue)}</td>
         <td><span class="badge ${badgeClass}">${paidText}</span></td>
@@ -503,10 +557,17 @@ function renderDashboard() {
   const todaySales = state.sales.filter(sale => sale.date === today);
   const todayRevenue = sum(todaySales, sale => saleTotals(sale).revenue);
   const todayProfit = sum(todaySales, sale => saleTotals(sale).profit);
-  const pendingAmount = sum(state.sales.filter(sale => sale.status === "pending"), sale => saleTotals(sale).revenue);
+  const pendingSales = state.sales.filter(sale => sale.status === "pending");
+  const pendingAmount = sum(pendingSales, sale => saleTotals(sale).revenue);
+  const pendingClients = new Set(pendingSales.map(sale => (sale.customer || "Cliente sem nome").trim()).filter(Boolean)).size;
+  const lowStockCount = logic.shoppingList(state.products).length;
   const stockCost = sum(state.products, product => product.cost * product.stock);
   const month = logic.monthStats(state.sales, today);
   els.dashboardGreeting.textContent = dashboardGreeting();
+  els.joTodaySales.textContent = `Hoje você vendeu ${money(todayRevenue)}`;
+  els.joTodayProfit.textContent = `Seu lucro estimado foi ${money(todayProfit)}`;
+  els.joPendingClients.textContent = `${pendingClients} cliente(s) ainda têm pendência`;
+  els.joLowStock.textContent = `${lowStockCount} produto(s) precisam de reposição`;
   document.getElementById("todayRevenue").textContent = money(todayRevenue);
   document.getElementById("todayProfit").textContent = money(todayProfit);
   document.getElementById("pendingAmount").textContent = money(pendingAmount);
@@ -579,12 +640,30 @@ function getReportRange() {
   return { start: toISODate(start), end: toISODate(end), label: `Mostrando ${monthName(start)}.` };
 }
 
+function comparisonLine(label, diff, percent) {
+  if (diff === 0) return `${label} ficou igual ao mês anterior.`;
+  const direction = diff > 0 ? "aumentou" : "caiu";
+  return `${label} ${direction} ${money(Math.abs(diff))} (${formatPercent(Math.abs(percent))}) em relação ao mês anterior.`;
+}
+
+function renderMonthComparison(range) {
+  if (!els.monthComparisonText) return;
+  if (!range.start || !range.end || range.start.slice(0, 7) !== range.end.slice(0, 7)) {
+    els.monthComparisonText.innerHTML = "Escolha um mês fechado para comparar com o mês anterior.";
+    return;
+  }
+  const comparison = logic.monthComparison(state.sales, range.start.slice(0, 7));
+  els.monthComparisonText.innerHTML = `
+    <div class="summary-line"><span>Vendas</span><strong>${comparisonLine("Você vendeu", comparison.revenueDiff, comparison.revenuePercent)}</strong></div>
+    <div class="summary-line"><span>Lucro</span><strong>${comparisonLine("O lucro", comparison.profitDiff, comparison.profitPercent)}</strong></div>`;
+}
 function renderReports() {
   const range = getReportRange();
   const isCustom = els.reportFilter.value === "custom";
   els.reportStartWrap.classList.toggle("hidden", !isCustom);
   els.reportEndWrap.classList.toggle("hidden", !isCustom);
   els.reportPeriodLabel.textContent = range.label;
+  renderMonthComparison(range);
 
   const filteredSales = state.sales.filter(sale => {
     if (range.start && sale.date < range.start) return false;
@@ -608,13 +687,161 @@ function renderReports() {
   const best = Object.entries(ranking).sort((a, b) => b[1] - a[1])[0];
   document.getElementById("bestSeller").textContent = best ? `${best[0]}: ${best[1]} unidade(s) vendida(s).` : "Nenhuma venda neste período.";
   els.backupStatus.textContent = formatDateTime(state.lastBackupAt);
+  els.autoBackupStatus.textContent = formatAutoBackupTime();
 }
 
+function currentCartGross() {
+  return logic.cartTotals(saleCart, 0).gross;
+}
+
+function cartReceiptText(sales) {
+  const first = sales[0];
+  const total = sum(sales, sale => saleTotals(sale).revenue);
+  const lines = [
+    "Venda registrada com sucesso",
+    `Cliente: ${first.customer || "Cliente"}`,
+    "Itens:"
+  ];
+  sales.forEach(sale => lines.push(`- ${sale.productSnapshot.name} (${sale.productSnapshot.category || "Sem categoria"}) x${sale.quantity}: ${money(saleTotals(sale).revenue)}`));
+  lines.push(`Total: ${money(total)}`);
+  lines.push(`Pagamento: ${salePaymentLabel(first)}`);
+  if (first.status === "pending") lines.push(`Prazo: ${formatDate(first.dueDate)}`);
+  return lines.join("\n");
+}
+
+function renderSaleCart() {
+  if (!els.saleCartPanel) return;
+  els.saleCartPanel.classList.toggle("hidden", !saleCart.length);
+  els.cartCountLabel.textContent = saleCart.length === 1 ? "1 item" : `${saleCart.length} itens`;
+  const totals = logic.cartTotals(saleCart, Number(els.saleDiscount.value || 0));
+  els.cartTotal.textContent = money(totals.revenue);
+  els.saleCartTable.innerHTML = saleCart.map(item => `
+    <tr>
+      <td>${escapeHTML(item.productSnapshot.name)}</td>
+      <td>${escapeHTML(item.productSnapshot.category || "-")}</td>
+      <td>${item.quantity}</td>
+      <td>${money(Number(item.unitPrice || 0) * Number(item.quantity || 0))}</td>
+      <td class="actions"><button class="secondary danger" type="button" data-remove-cart="${item.productId}">Remover</button></td>
+    </tr>`).join("");
+}
+
+function addCurrentItemToCart() {
+  const product = getProduct(els.saleProduct.value);
+  const quantity = Number(els.saleQuantity.value || 0);
+  if (!product) return showToast("Escolha um produto para adicionar.");
+  if (quantity <= 0) return showToast("Informe a quantidade.");
+  const alreadyInCart = sum(saleCart.filter(item => item.productId === product.id), item => item.quantity);
+  if (alreadyInCart + quantity > product.stock) return showToast("Não tem essa quantidade em estoque para o carrinho.");
+  const existing = saleCart.find(item => item.productId === product.id);
+  if (existing) existing.quantity += quantity;
+  else saleCart.push({
+    productId: product.id,
+    productSnapshot: { name: product.name, category: product.category || "", cost: product.cost, price: product.price },
+    unitCost: product.cost,
+    unitPrice: product.price,
+    quantity
+  });
+  els.saleQuantity.value = 1;
+  els.saleProductSearch.value = "";
+  renderProductOptions();
+  renderSaleCart();
+  updateSalePreview();
+  showToast("Produto adicionado ao carrinho.");
+}
+
+function clearSaleCart() {
+  saleCart = [];
+  renderSaleCart();
+  updateSalePreview();
+}
+
+function removeCartItem(productId) {
+  saleCart = saleCart.filter(item => item.productId !== productId);
+  renderSaleCart();
+  updateSalePreview();
+}
+
+function buildSalesFromCart() {
+  const discount = Number(els.saleDiscount.value || 0);
+  const gross = currentCartGross();
+  if (discount > gross) return null;
+  let usedDiscount = 0;
+  const groupId = uid("cart");
+  return saleCart.map((item, index) => {
+    const itemGross = Number(item.unitPrice || 0) * Number(item.quantity || 0);
+    const itemDiscount = index === saleCart.length - 1 ? discount - usedDiscount : Math.round((discount * (itemGross / gross)) * 100) / 100;
+    usedDiscount += itemDiscount;
+    return {
+      id: uid("sale"),
+      saleGroupId: groupId,
+      productId: item.productId,
+      productSnapshot: item.productSnapshot,
+      unitCost: item.unitCost,
+      unitPrice: item.unitPrice,
+      quantity: item.quantity,
+      discount: itemDiscount,
+      date: els.saleDate.value,
+      customer: els.customerName.value.trim(),
+      status: isPendingPaymentType(els.paymentStatus.value) ? "pending" : "paid",
+      paymentType: els.paymentStatus.value,
+      dueDate: isPendingPaymentType(els.paymentStatus.value) ? els.dueDate.value : "",
+      paidDate: els.paymentStatus.value === "paid-now" ? els.saleDate.value : ""
+    };
+  });
+}
+
+function saveCartSale() {
+  if (isPendingPaymentType(els.paymentStatus.value) && !els.customerName.value.trim()) return showToast("Informe o nome de quem vai pagar depois.");
+  const sales = buildSalesFromCart();
+  if (!sales) return showToast("O desconto não pode ser maior que o total da venda.");
+  const requestedByProduct = new Map();
+  saleCart.forEach(item => requestedByProduct.set(item.productId, (requestedByProduct.get(item.productId) || 0) + Number(item.quantity || 0)));
+  for (const [productId, requested] of requestedByProduct) {
+    const product = getProduct(productId);
+    if (!product || requested > Number(product.stock || 0)) return showToast("Não tem essa quantidade em estoque para o carrinho.");
+  }
+  for (const sale of sales) logic.applySaleStockChange(state.products, null, sale);
+  state.sales.push(...sales);
+  resetSaleForm();
+  saleCart = [];
+  render();
+  lastSaleReceiptText = cartReceiptText(sales);
+  els.saleReceiptText.textContent = lastSaleReceiptText;
+  els.saleReceiptPanel.classList.remove("hidden");
+  showToast("Venda registrada com carrinho.");
+}
+function showSaleReceipt(sale) {
+  if (!els.saleReceiptPanel || !els.saleReceiptText) return;
+  lastSaleReceiptText = logic.saleReceiptText(sale);
+  els.saleReceiptText.textContent = lastSaleReceiptText;
+  els.saleReceiptPanel.classList.remove("hidden");
+}
+
+async function copySaleReceipt() {
+  if (!lastSaleReceiptText) return showToast("Nenhum recibinho para copiar ainda.");
+  try {
+    await navigator.clipboard.writeText(lastSaleReceiptText);
+    showToast("Resumo copiado para o WhatsApp.");
+  } catch (error) {
+    const area = document.createElement("textarea");
+    area.value = lastSaleReceiptText;
+    document.body.appendChild(area);
+    area.select();
+    document.execCommand("copy");
+    area.remove();
+    showToast("Resumo copiado para o WhatsApp.");
+  }
+}
 function updateSalePreview() {
   const product = getProduct(els.saleProduct.value);
   const quantity = Number(els.saleQuantity.value || 0);
   const discount = Number(els.saleDiscount.value || 0);
-  els.salePreview.textContent = money(product ? logic.saleTotals({ unitPrice: product.price, unitCost: product.cost, quantity, discount }).revenue : 0);
+  if (saleCart.length) {
+    els.salePreview.textContent = money(logic.cartTotals(saleCart, discount).revenue);
+    renderSaleCart();
+  } else {
+    els.salePreview.textContent = money(product ? logic.saleTotals({ unitPrice: product.price, unitCost: product.cost, quantity, discount }).revenue : 0);
+  }
   els.dueDateWrap.classList.toggle("hidden", !isPendingPaymentType(els.paymentStatus.value));
   if (isPendingPaymentType(els.paymentStatus.value) && !els.dueDate.value) els.dueDate.value = todayISO();
 }
@@ -699,6 +926,7 @@ function resetSaleForm() {
 
 function handleSaleSubmit(event) {
   event.preventDefault();
+  if (saleCart.length) return saveCartSale();
   const product = getProduct(els.saleProduct.value);
   const quantity = Number(els.saleQuantity.value);
   const editingId = els.editingSaleId.value;
@@ -718,6 +946,7 @@ function handleSaleSubmit(event) {
   }
   resetSaleForm();
   render();
+  showSaleReceipt(nextSale);
   showToast(oldSale ? "Venda atualizada." : "Venda registrada.");
 }
 
@@ -1050,10 +1279,15 @@ els.tabs.forEach(tab => tab.addEventListener("click", () => setScreen(tab.datase
 els.productForm.addEventListener("submit", handleProductSubmit);
 els.saleForm.addEventListener("submit", handleSaleSubmit);
 els.purchaseForm.addEventListener("submit", handlePurchaseSubmit);
+els.saleProductSearch.addEventListener("input", () => { renderProductOptions(); updateSalePreview(); });
+els.addToCartBtn.addEventListener("click", addCurrentItemToCart);
 els.saleProduct.addEventListener("change", updateSalePreview);
 els.saleQuantity.addEventListener("input", updateSalePreview);
 els.saleDiscount.addEventListener("input", updateSalePreview);
 els.cancelEditSale.addEventListener("click", resetSaleForm);
+els.copyReceiptBtn.addEventListener("click", copySaleReceipt);
+els.clearCartBtn.addEventListener("click", clearSaleCart);
+els.saleCartTable.addEventListener("click", event => { if (event.target.dataset.removeCart) removeCartItem(event.target.dataset.removeCart); });
 els.paymentStatus.addEventListener("change", updateSalePreview);
 els.purchaseProduct.addEventListener("change", () => {
   const product = getProduct(els.purchaseProduct.value);
@@ -1125,6 +1359,17 @@ if (sessionStorage.getItem(SESSION_KEY) === "sim") {
 } else {
   showLogin();
 }
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -62,12 +62,17 @@
           </div>
           <span id="todayLabel"></span>
         </div>
-        <section class="welcome-panel">
+        <section class="welcome-panel jo-panel">
           <div>
-            <p class="eyebrow accent-text">bem-vinda</p>
-            <h3 id="dashboardGreeting">Bom dia, Mãe! Veja como está sua lojinha hoje.</h3>
+            <p class="eyebrow accent-text">painel da Jô</p>
+            <h3 id="dashboardGreeting">Bom dia, Joelma 🌸</h3>
           </div>
-          <span class="welcome-chip">Lojinha da Jô</span>
+          <div class="jo-summary">
+            <p id="joTodaySales">Hoje você vendeu R$ 0,00</p>
+            <p id="joTodayProfit">Seu lucro estimado foi R$ 0,00</p>
+            <p id="joPendingClients">0 clientes ainda têm pendência</p>
+            <p id="joLowStock">0 produtos precisam de reposição</p>
+          </div>
         </section>
         <div class="metrics">
           <article class="metric"><i class="metric-icon">R$</i><span>Vendido hoje</span><strong id="todayRevenue">R$ 0,00</strong></article>
@@ -119,6 +124,7 @@
         <div class="section-heading"><h2 id="saleTitle">Registrar venda</h2></div>
         <form id="saleForm" class="panel form-grid">
           <input id="editingSaleId" type="hidden">
+          <label>Buscar produto<input id="saleProductSearch" type="search" placeholder="Ex.: coca, bolo, café"></label>
           <label>Produto<select id="saleProduct" required></select></label>
           <label>Quantidade<input id="saleQuantity" type="number" min="1" step="1" value="1" required></label>
           <label>Desconto R$<input id="saleDiscount" type="number" min="0" step="0.01" value="0"></label>
@@ -127,9 +133,25 @@
           <label>Pagamento<select id="paymentStatus"><option value="paid-now">Pago na hora</option><option value="payday">Pagamento</option><option value="voucher">Vale</option></select></label>
           <label id="dueDateWrap">Data combinada<input id="dueDate" type="date"></label>
           <div class="form-total"><span>Total da venda</span><strong id="salePreview">R$ 0,00</strong></div>
-          <div class="form-actions"><button id="saleSubmitBtn" class="primary" type="submit">Salvar venda</button><button id="cancelEditSale" class="secondary hidden" type="button">Cancelar edição</button></div>
+          <div class="form-actions"><button id="addToCartBtn" class="secondary" type="button">Adicionar ao carrinho</button><button id="saleSubmitBtn" class="primary" type="submit">Salvar venda</button><button id="cancelEditSale" class="secondary hidden" type="button">Cancelar edição</button></div>
         </form>
-        <section class="panel"><h3>Últimas vendas</h3><div class="table-wrap"><table><thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th>Qtd.</th><th>Total</th><th>Pagamento</th><th></th></tr></thead><tbody id="recentSalesTable"></tbody></table></div></section>
+        <section id="saleCartPanel" class="panel cart-panel hidden">
+          <div class="panel-title-row">
+            <h3>Carrinho da venda</h3>
+            <span id="cartCountLabel" class="soft-label">0 item</span>
+          </div>
+          <div class="table-wrap"><table><thead><tr><th>Produto</th><th>Categoria</th><th>Quantidade</th><th>Valor</th><th></th></tr></thead><tbody id="saleCartTable"></tbody></table></div>
+          <div class="cart-footer"><strong>Total da venda: <span id="cartTotal">R$ 0,00</span></strong><button id="clearCartBtn" class="secondary" type="button">Limpar carrinho</button></div>
+        </section>
+        <section id="saleReceiptPanel" class="panel receipt-panel hidden">
+          <div class="panel-title-row">
+            <h3>Recibinho da venda</h3>
+            <span class="soft-label">Pronto para WhatsApp</span>
+          </div>
+          <pre id="saleReceiptText" class="receipt-text"></pre>
+          <button id="copyReceiptBtn" class="primary" type="button">Copiar resumo para WhatsApp</button>
+        </section>
+        <section class="panel"><h3>Últimas vendas</h3><div class="table-wrap"><table><thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th>Categoria</th><th>Qtd.</th><th>Total</th><th>Pagamento</th><th></th></tr></thead><tbody id="recentSalesTable"></tbody></table></div></section>
       </section>
 
       <section id="products" class="screen" aria-labelledby="productsTitle">
@@ -223,8 +245,9 @@
           <article class="metric"><i class="metric-icon">#</i><span>Valor em estoque</span><strong id="stockSaleValue">R$ 0,00</strong></article>
           <article class="metric"><i class="metric-icon">+</i><span>Lucro se vender tudo</span><strong id="expectedProfit">R$ 0,00</strong></article>
         </div>
+        <section class="panel comparison-panel"><h3>Comparação com o mês anterior</h3><div id="monthComparisonText" class="comparison-lines">Escolha um mês para comparar.</div></section>
         <section class="panel report-panel"><h3>Produto que mais vendeu no período</h3><p id="bestSeller">Ainda não há vendas registradas.</p></section>
-        <section class="panel backup-panel"><h3>Guardar os dados</h3><p id="backupStatus" class="backup-status">Nenhum backup baixado ainda.</p><div class="backup-actions"><button id="exportCsv" class="secondary" type="button">Baixar planilha CSV</button><button id="exportJson" class="secondary" type="button">Baixar backup</button><label class="file-button">Importar backup<input id="importJson" type="file" accept="application/json"></label></div></section>
+        <section class="panel backup-panel"><h3>Guardar os dados</h3><p id="backupStatus" class="backup-status">Nenhum backup baixado ainda.</p><p id="autoBackupStatus" class="backup-status">Backup automático ainda não foi feito.</p><div class="backup-actions"><button id="exportCsv" class="secondary" type="button">Baixar planilha CSV</button><button id="exportJson" class="secondary" type="button">Baixar backup</button><label class="file-button">Importar backup<input id="importJson" type="file" accept="application/json"></label></div></section>
       </section>
     </main>
   </div>
@@ -235,6 +258,10 @@
   <script src="app.js"></script>
 </body>
 </html>
+
+
+
+
 
 
 
