@@ -218,17 +218,10 @@ function applySeasonalTheme() {
   const info = logic.seasonalThemeInfo(todayISO());
   document.body.dataset.season = info.season;
   if (!els.loginSeasonDecor || !els.loginSeasonMessage) return;
-  const decorLabels = {
-    june: "Bandeirinhas de festa junina",
-    birthday: "Balões de aniversário",
-    "birthday-day": "Feliz aniversário, mãe!!!",
-    halloween: "Outubro especial da Lojinha",
-    christmas: "Natal da Lojinha da Jô"
-  };
   const hasTheme = info.season !== "normal";
-  els.loginSeasonDecor.classList.toggle("hidden", !hasTheme);
+  els.loginSeasonDecor.classList.add("hidden");
+  els.loginSeasonDecor.textContent = "";
   els.loginSeasonMessage.classList.toggle("hidden", !hasTheme);
-  els.loginSeasonDecor.textContent = decorLabels[info.season] || "";
   els.loginSeasonMessage.textContent = info.message;
 }
 
@@ -1132,6 +1125,7 @@ if (sessionStorage.getItem(SESSION_KEY) === "sim") {
 } else {
   showLogin();
 }
+
 
 
 
