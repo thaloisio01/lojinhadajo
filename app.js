@@ -564,10 +564,18 @@ function renderDashboard() {
   const stockCost = sum(state.products, product => product.cost * product.stock);
   const month = logic.monthStats(state.sales, today);
   els.dashboardGreeting.textContent = dashboardGreeting();
-  els.joTodaySales.textContent = `Hoje você vendeu ${money(todayRevenue)}`;
-  els.joTodayProfit.textContent = `Seu lucro estimado foi ${money(todayProfit)}`;
-  els.joPendingClients.textContent = `${pendingClients} cliente(s) ainda têm pendência`;
-  els.joLowStock.textContent = `${lowStockCount} produto(s) precisam de reposição`;
+  els.joTodaySales.textContent = todaySales.length
+    ? "Hoje a lojinha já teve movimento. Os detalhes estão nos cards abaixo."
+    : "Hoje ainda não teve venda registrada. Quando vender, os cards abaixo atualizam sozinhos.";
+  els.joPendingClients.textContent = pendingClients
+    ? `${pendingClients} cliente(s) para acompanhar no a receber.`
+    : "Nenhum cliente pendente hoje.";
+  els.joLowStock.textContent = lowStockCount
+    ? `${lowStockCount} produto(s) para colocar na lista de compras.`
+    : "Estoque sem alerta de reposição.";
+  els.joTodayProfit.textContent = pendingClients || lowStockCount
+    ? "Prioridade do dia: olhar os avisos antes de fechar."
+    : "Tudo em ordem por enquanto.";
   document.getElementById("todayRevenue").textContent = money(todayRevenue);
   document.getElementById("todayProfit").textContent = money(todayProfit);
   document.getElementById("pendingAmount").textContent = money(pendingAmount);
@@ -1359,6 +1367,7 @@ if (sessionStorage.getItem(SESSION_KEY) === "sim") {
 } else {
   showLogin();
 }
+
 
 
 

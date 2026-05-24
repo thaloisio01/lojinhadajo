@@ -313,24 +313,40 @@ input:focus, select:focus { outline: 3px solid rgba(127, 29, 29, 0.20); border-c
 
 
 .jo-panel {
-  align-items: stretch;
+  align-items: center;
+}
+
+.jo-copy {
+  max-width: 440px;
+}
+
+.jo-main-note {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-weight: 700;
+  line-height: 1.45;
 }
 
 .jo-summary {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
-  width: 100%;
+  width: min(100%, 820px);
 }
 
 .jo-summary p {
   margin: 0;
-  padding: 12px;
-  border: 1px solid var(--line);
+  padding: 12px 14px;
+  border: 1px solid #efd0d0;
   border-radius: 8px;
-  background: #fffdfa;
+  background: rgba(255, 253, 250, 0.78);
   color: var(--brand-dark);
   font-weight: 800;
+  line-height: 1.35;
+}
+
+.jo-summary-soft p {
+  box-shadow: none;
 }
 
 .cart-panel {
@@ -533,6 +549,7 @@ body[data-season="christmas"] .login-screen::before {
 body[data-season="birthday-day"] .season-message {
   font-size: 1.18rem;
 }
+
 
 
 
