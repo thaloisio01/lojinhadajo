@@ -55,6 +55,52 @@
       discount: safeDiscount
     };
   }
+
+  function roundMoney(value) {
+    return Math.round(Number(value || 0) * 100) / 100;
+  }
+
+  function quickSaleEstimate(products, value) {
+    const revenue = roundMoney(Math.max(Number(value || 0), 0));
+    const validProducts = (products || []).filter(product => Number(product.price || 0) > 0);
+    const totalPrice = sum(validProducts, product => Number(product.price || 0));
+    const totalProfit = sum(validProducts, product => Math.max(Number(product.price || 0) - Number(product.cost || 0), 0));
+    const margin = totalPrice > 0 ? totalProfit / totalPrice : 0;
+    const estimatedProfit = roundMoney(revenue * margin);
+    const estimatedCost = roundMoney(revenue - estimatedProfit);
+    return { revenue, estimatedCost, estimatedProfit, profitRate: Math.round(margin * 100) };
+  }
+
+  function stockConferencePlan(products, countedStockById) {
+    const sold = [];
+    const adjustments = [];
+    (products || []).forEach(product => {
+      if (!Object.prototype.hasOwnProperty.call(countedStockById || {}, product.id)) return;
+      const previousStock = Number(product.stock || 0);
+      const countedStock = Number(countedStockById[product.id] || 0);
+      const difference = countedStock - previousStock;
+      if (difference === 0) return;
+      adjustments.push({ productId: product.id, productName: product.name, previousStock, countedStock, difference });
+      if (difference < 0) {
+        const quantitySold = Math.abs(difference);
+        const unitCost = Number(product.cost || 0);
+        const unitPrice = Number(product.price || 0);
+        sold.push({
+          productId: product.id,
+          productName: product.name,
+          category: product.category || "",
+          previousStock,
+          countedStock,
+          quantitySold,
+          unitCost,
+          unitPrice,
+          revenue: roundMoney(unitPrice * quantitySold),
+          profit: roundMoney((unitPrice - unitCost) * quantitySold)
+        });
+      }
+    });
+    return { sold, adjustments };
+  }
   function profitPercent(cost, price) {
     const paid = Number(cost || 0);
     const sale = Number(price || 0);
@@ -317,8 +363,9 @@
       }));
   }
 
-  return { saleTotals, normalizeProductName, filterProducts, cartTotals, hasDuplicateProductName, profitPercent, monthStats, monthComparison, monthHighlights, customerRankings, closingStats, monthlyClosingStats, monthlyBusinessSummary, seasonalThemeInfo, saleReceiptText, applySaleStockChange, shoppingList };
+  return { saleTotals, normalizeProductName, filterProducts, cartTotals, quickSaleEstimate, stockConferencePlan, hasDuplicateProductName, profitPercent, monthStats, monthComparison, monthHighlights, customerRankings, closingStats, monthlyClosingStats, monthlyBusinessSummary, seasonalThemeInfo, saleReceiptText, applySaleStockChange, shoppingList };
 });
+
 
 
 

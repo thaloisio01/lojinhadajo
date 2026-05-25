@@ -48,6 +48,7 @@
       <button class="tab" data-screen="products" type="button"><span class="tab-icon">#</span>Produtos</button>
       <button class="tab" data-screen="purchases" type="button"><span class="tab-icon">+</span>Compras</button>
       <button class="tab" data-screen="closing" type="button"><span class="tab-icon">✓</span>Fechamento</button>
+      <button class="tab" data-screen="stockCheck" type="button"><span class="tab-icon">≡</span>Conferir estoque</button>
       <button class="tab" data-screen="shopping" type="button"><span class="tab-icon">!</span>Lista de compras</button>
       <button class="tab" data-screen="debts" type="button"><span class="tab-icon">?</span>A receber</button>
       <button class="tab" data-screen="reports" type="button"><span class="tab-icon">%</span>Relatórios</button>
@@ -124,15 +125,18 @@
         <div class="section-heading"><h2 id="saleTitle">Registrar venda</h2></div>
         <form id="saleForm" class="panel form-grid">
           <input id="editingSaleId" type="hidden">
-          <label>Buscar produto<input id="saleProductSearch" type="search" placeholder="Ex.: coca, bolo, café"></label>
-          <label>Produto<select id="saleProduct" required></select></label>
-          <label>Quantidade<input id="saleQuantity" type="number" min="1" step="1" value="1" required></label>
-          <label>Desconto R$<input id="saleDiscount" type="number" min="0" step="0.01" value="0"></label>
+          <label>Tipo de venda<select id="saleMode"><option value="product">Com produto marcado</option><option value="amount">Venda só pelo valor</option></select></label>
+          <label id="saleProductSearchWrap">Buscar produto<input id="saleProductSearch" type="search" placeholder="Ex.: coca, bolo, café"></label>
+          <label id="saleProductWrap">Produto<select id="saleProduct" required></select></label>
+          <label id="saleQuantityWrap">Quantidade<input id="saleQuantity" type="number" min="1" step="1" value="1" required></label>
+          <label id="quickSaleAmountWrap" class="hidden">Valor vendido<input id="quickSaleAmount" type="number" min="0.01" step="0.01" placeholder="0,00"></label>
+          <label id="quickSaleNoteWrap" class="hidden">Observação<input id="quickSaleNote" type="text" placeholder="Ex.: venda sem marcar produto"></label>
+          <label id="saleDiscountWrap">Desconto R$<input id="saleDiscount" type="number" min="0" step="0.01" value="0"></label>
           <label>Data da venda<input id="saleDate" type="date" required></label>
           <label>Cliente<input id="customerName" type="text" placeholder="Nome de quem comprou"></label>
           <label>Pagamento<select id="paymentStatus"><option value="paid-now">Pago na hora</option><option value="payday">Pagamento</option><option value="voucher">Vale</option></select></label>
           <label id="dueDateWrap">Data combinada<input id="dueDate" type="date"></label>
-          <div class="form-total"><span>Total da venda</span><strong id="salePreview">R$ 0,00</strong></div>
+          <div class="form-total"><span>Total da venda</span><strong id="salePreview">R$ 0,00</strong><small id="quickSaleEstimateText"></small></div>
           <div class="form-actions"><button id="addToCartBtn" class="secondary" type="button">Adicionar ao carrinho</button><button id="saleSubmitBtn" class="primary" type="submit">Salvar venda</button><button id="cancelEditSale" class="secondary hidden" type="button">Cancelar edição</button></div>
         </form>
         <section id="saleCartPanel" class="panel cart-panel hidden">
@@ -208,6 +212,24 @@
         <section id="officialMonthSummary" class="panel official-summary hidden"></section>
       </section>
 
+      <section id="stockCheck" class="screen" aria-labelledby="stockCheckTitle">
+        <div class="section-heading"><h2 id="stockCheckTitle">Conferir estoque</h2></div>
+        <section class="panel accent-panel">
+          <div class="panel-title-row">
+            <h3>Contagem real da lojinha</h3>
+            <span class="soft-label">Use quando venderam e não marcaram o produto</span>
+          </div>
+          <p class="helper-text">Digite quanto sobrou de cada produto. Se o número contado for menor que o estoque do app, a diferença entra como venda por conferência.</p>
+          <form id="stockCheckForm">
+            <div class="form-grid compact-grid">
+              <label>Data da conferência<input id="stockCheckDate" type="date" required></label>
+              <div class="form-total"><span>Prévia</span><strong id="stockCheckPreview">Nenhuma diferença.</strong></div>
+            </div>
+            <div class="table-wrap stock-check-wrap"><table><thead><tr><th>Produto</th><th>Categoria</th><th>Estoque no app</th><th>Estoque contado</th><th>Diferença</th></tr></thead><tbody id="stockCheckTable"></tbody></table></div>
+            <div class="form-actions"><button class="primary" type="submit">Salvar conferência</button></div>
+          </form>
+        </section>
+      </section>
       <section id="shopping" class="screen" aria-labelledby="shoppingTitle">
         <div class="section-heading"><h2 id="shoppingTitle">Lista de compras</h2><span id="shoppingCountLabel"></span></div>
         <section class="panel accent-panel"><h3>Produtos com estoque baixo</h3><div id="shoppingList" class="shopping-grid empty-state">Nenhum produto precisa comprar agora.</div></section>
@@ -258,6 +280,7 @@
   <script src="app.js"></script>
 </body>
 </html>
+
 
 
 

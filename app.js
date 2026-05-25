@@ -70,6 +70,16 @@ const els = {
   saleForm: document.getElementById("saleForm"),
   editingSaleId: document.getElementById("editingSaleId"),
   saleSubmitBtn: document.getElementById("saleSubmitBtn"),
+  saleMode: document.getElementById("saleMode"),
+  saleProductSearchWrap: document.getElementById("saleProductSearchWrap"),
+  saleProductWrap: document.getElementById("saleProductWrap"),
+  saleQuantityWrap: document.getElementById("saleQuantityWrap"),
+  quickSaleAmountWrap: document.getElementById("quickSaleAmountWrap"),
+  quickSaleNoteWrap: document.getElementById("quickSaleNoteWrap"),
+  quickSaleAmount: document.getElementById("quickSaleAmount"),
+  quickSaleNote: document.getElementById("quickSaleNote"),
+  quickSaleEstimateText: document.getElementById("quickSaleEstimateText"),
+  saleDiscountWrap: document.getElementById("saleDiscountWrap"),
   cancelEditSale: document.getElementById("cancelEditSale"),
   addToCartBtn: document.getElementById("addToCartBtn"),
   saleProductSearch: document.getElementById("saleProductSearch"),
@@ -115,6 +125,10 @@ const els = {
   closingSummary: document.getElementById("closingSummary"),
   generateMonthSummary: document.getElementById("generateMonthSummary"),
   officialMonthSummary: document.getElementById("officialMonthSummary"),
+  stockCheckForm: document.getElementById("stockCheckForm"),
+  stockCheckDate: document.getElementById("stockCheckDate"),
+  stockCheckTable: document.getElementById("stockCheckTable"),
+  stockCheckPreview: document.getElementById("stockCheckPreview"),
   shoppingList: document.getElementById("shoppingList"),
   shoppingCountLabel: document.getElementById("shoppingCountLabel"),
   debtsTable: document.getElementById("debtsTable"),
@@ -297,6 +311,9 @@ function render() {
   renderPurchases();
   renderSales();
   renderDebts();
+  renderClosing();
+  renderShoppingList();
+  renderStockConference();
   renderDashboard();
   renderReports();
   updateSalePreview();
@@ -307,6 +324,7 @@ function renderDates() {
   els.todayLabel.textContent = `Hoje: ${formatDate(todayISO())}`;
   if (!els.saleDate.value) els.saleDate.value = todayISO();
   if (!els.purchaseDate.value) els.purchaseDate.value = todayISO();
+  if (els.stockCheckDate && !els.stockCheckDate.value) els.stockCheckDate.value = todayISO();
   if (els.closingDate && !els.closingDate.value) els.closingDate.value = todayISO();
   if (els.closingMonth && !els.closingMonth.value) els.closingMonth.value = todayISO().slice(0, 7);
 }
@@ -552,6 +570,96 @@ function renderShoppingList() {
     </article>`).join("");
 }
 
+
+function stockCheckCountMap() {
+  const counts = {};
+  if (!els.stockCheckTable) return counts;
+  els.stockCheckTable.querySelectorAll("[data-stock-count]").forEach(input => {
+    counts[input.dataset.stockCount] = Number(input.value || 0);
+  });
+  return counts;
+}
+
+function updateStockCheckPreview() {
+  if (!els.stockCheckPreview) return;
+  const plan = logic.stockConferencePlan(state.products, stockCheckCountMap());
+  if (!plan.adjustments.length) {
+    els.stockCheckPreview.textContent = "Nenhuma diferença.";
+    return;
+  }
+  const soldQuantity = sum(plan.sold, item => item.quantitySold);
+  const soldRevenue = sum(plan.sold, item => item.revenue);
+  const soldProfit = sum(plan.sold, item => item.profit);
+  els.stockCheckPreview.textContent = soldQuantity
+    ? `${soldQuantity} un. vendida(s) pela conferência - ${money(soldRevenue)} | lucro ${money(soldProfit)}`
+    : `${plan.adjustments.length} ajuste(s) de estoque sem venda.`;
+}
+
+function renderStockConference() {
+  if (!els.stockCheckTable) return;
+  if (!state.products.length) {
+    els.stockCheckTable.innerHTML = '<tr><td colspan="5">Cadastre produtos antes de conferir o estoque.</td></tr>';
+    els.stockCheckPreview.textContent = "Nenhuma diferença.";
+    return;
+  }
+  els.stockCheckTable.innerHTML = state.products.map(product => `
+    <tr>
+      <td><strong>${escapeHTML(product.name)}</strong></td>
+      <td>${escapeHTML(product.category || "Sem categoria")}</td>
+      <td>${Number(product.stock || 0)}</td>
+      <td><input class="stock-count-input" type="number" min="0" step="1" value="${Number(product.stock || 0)}" data-stock-count="${product.id}"></td>
+      <td data-stock-diff="${product.id}">0</td>
+    </tr>`).join("");
+  updateStockCheckPreview();
+}
+
+function refreshStockCheckDiffs() {
+  if (!els.stockCheckTable) return;
+  const counts = stockCheckCountMap();
+  state.products.forEach(product => {
+    const cell = els.stockCheckTable.querySelector(`[data-stock-diff="${product.id}"]`);
+    if (!cell) return;
+    const difference = Number(counts[product.id] || 0) - Number(product.stock || 0);
+    cell.textContent = difference > 0 ? `+${difference}` : String(difference);
+    cell.className = difference < 0 ? "stock-negative" : difference > 0 ? "stock-positive" : "";
+  });
+  updateStockCheckPreview();
+}
+
+function handleStockCheckSubmit(event) {
+  event.preventDefault();
+  const plan = logic.stockConferencePlan(state.products, stockCheckCountMap());
+  if (!plan.adjustments.length) return showToast("Nenhuma diferença para salvar.");
+  const date = els.stockCheckDate.value || todayISO();
+  const sales = plan.sold.map(item => ({
+    id: uid("sale"),
+    productId: item.productId,
+    productSnapshot: { name: item.productName, category: item.category || "Sem categoria", cost: item.unitCost, price: item.unitPrice },
+    unitCost: item.unitCost,
+    unitPrice: item.unitPrice,
+    quantity: item.quantitySold,
+    discount: 0,
+    date,
+    customer: "Conferência de estoque",
+    status: "paid",
+    paymentType: "paid-now",
+    dueDate: "",
+    paidDate: date,
+    source: "stock-check"
+  }));
+  plan.adjustments.forEach(adjustment => {
+    const product = getProduct(adjustment.productId);
+    if (product) product.stock = adjustment.countedStock;
+  });
+  state.sales.push(...sales);
+  render();
+  if (sales.length) {
+    lastSaleReceiptText = cartReceiptText(sales);
+    els.saleReceiptText.textContent = lastSaleReceiptText;
+    els.saleReceiptPanel.classList.remove("hidden");
+  }
+  showToast(sales.length ? "Conferência salva e venda registrada." : "Estoque ajustado.");
+}
 function renderDashboard() {
   const today = todayISO();
   const todaySales = state.sales.filter(sale => sale.date === today);
@@ -841,14 +949,24 @@ async function copySaleReceipt() {
   }
 }
 function updateSalePreview() {
-  const product = getProduct(els.saleProduct.value);
-  const quantity = Number(els.saleQuantity.value || 0);
-  const discount = Number(els.saleDiscount.value || 0);
-  if (saleCart.length) {
-    els.salePreview.textContent = money(logic.cartTotals(saleCart, discount).revenue);
-    renderSaleCart();
+  setSaleModeUI();
+  const quick = isQuickSaleMode();
+  if (quick) {
+    const amount = Number(els.quickSaleAmount.value || 0);
+    const estimate = logic.quickSaleEstimate(state.products, amount);
+    els.salePreview.textContent = money(estimate.revenue);
+    els.quickSaleEstimateText.textContent = amount > 0 ? `Lucro estimado pela média: ${money(estimate.estimatedProfit)} (${formatPercent(estimate.profitRate)})` : "";
   } else {
-    els.salePreview.textContent = money(product ? logic.saleTotals({ unitPrice: product.price, unitCost: product.cost, quantity, discount }).revenue : 0);
+    els.quickSaleEstimateText.textContent = "";
+    const product = getProduct(els.saleProduct.value);
+    const quantity = Number(els.saleQuantity.value || 0);
+    const discount = Number(els.saleDiscount.value || 0);
+    if (saleCart.length) {
+      els.salePreview.textContent = money(logic.cartTotals(saleCart, discount).revenue);
+      renderSaleCart();
+    } else {
+      els.salePreview.textContent = money(product ? logic.saleTotals({ unitPrice: product.price, unitCost: product.cost, quantity, discount }).revenue : 0);
+    }
   }
   els.dueDateWrap.classList.toggle("hidden", !isPendingPaymentType(els.paymentStatus.value));
   if (isPendingPaymentType(els.paymentStatus.value) && !els.dueDate.value) els.dueDate.value = todayISO();
@@ -903,6 +1021,65 @@ function handleProductSubmit(event) {
   showToast("Produto salvo.");
 }
 
+
+function isQuickSaleMode() {
+  return els.saleMode && els.saleMode.value === "amount";
+}
+
+function setSaleModeUI() {
+  const quick = isQuickSaleMode();
+  [els.saleProductSearchWrap, els.saleProductWrap, els.saleQuantityWrap, els.saleDiscountWrap].forEach(element => element?.classList.toggle("hidden", quick));
+  [els.quickSaleAmountWrap, els.quickSaleNoteWrap].forEach(element => element?.classList.toggle("hidden", !quick));
+  els.saleProduct.disabled = quick;
+  els.saleProduct.required = !quick;
+  els.saleQuantity.disabled = quick;
+  els.saleQuantity.required = !quick;
+  els.saleProductSearch.disabled = quick;
+  els.saleDiscount.disabled = quick;
+  els.addToCartBtn.disabled = quick || Boolean(els.editingSaleId.value);
+}
+
+function buildQuickSaleFromForm(id) {
+  const amount = Number(els.quickSaleAmount.value || 0);
+  const estimate = logic.quickSaleEstimate(state.products, amount);
+  const note = els.quickSaleNote.value.trim();
+  return {
+    id,
+    productId: "",
+    productSnapshot: { name: note ? `Venda por valor - ${note}` : "Venda por valor", category: "Sem produto", cost: estimate.estimatedCost, price: estimate.revenue },
+    unitCost: estimate.estimatedCost,
+    unitPrice: estimate.revenue,
+    quantity: 1,
+    discount: 0,
+    date: els.saleDate.value,
+    customer: els.customerName.value.trim(),
+    status: isPendingPaymentType(els.paymentStatus.value) ? "pending" : "paid",
+    paymentType: els.paymentStatus.value,
+    dueDate: isPendingPaymentType(els.paymentStatus.value) ? els.dueDate.value : "",
+    paidDate: els.paymentStatus.value === "paid-now" ? els.saleDate.value : "",
+    quickSale: true,
+    estimatedProfitRate: estimate.profitRate,
+    note
+  };
+}
+
+function handleQuickSaleSubmit(editingId, oldSale) {
+  const amount = Number(els.quickSaleAmount.value || 0);
+  if (amount <= 0) return showToast("Informe o valor vendido.");
+  if (isPendingPaymentType(els.paymentStatus.value) && !els.customerName.value.trim()) return showToast("Informe o nome de quem vai pagar depois.");
+  const nextSale = buildQuickSaleFromForm(editingId || uid("sale"));
+  logic.applySaleStockChange(state.products, oldSale, nextSale);
+  if (oldSale) {
+    const index = state.sales.findIndex(sale => sale.id === oldSale.id);
+    state.sales[index] = nextSale;
+  } else {
+    state.sales.push(nextSale);
+  }
+  resetSaleForm();
+  render();
+  showSaleReceipt(nextSale);
+  showToast(oldSale ? "Venda por valor atualizada." : "Venda por valor registrada.");
+}
 function buildSaleFromForm(id, product, quantity) {
   return {
     id,
@@ -924,6 +1101,9 @@ function buildSaleFromForm(id, product, quantity) {
 function resetSaleForm() {
   els.saleForm.reset();
   els.editingSaleId.value = "";
+  els.saleMode.value = "product";
+  els.quickSaleAmount.value = "";
+  els.quickSaleNote.value = "";
   els.saleQuantity.value = 1;
   els.saleDiscount.value = 0;
   els.saleDate.value = todayISO();
@@ -934,11 +1114,12 @@ function resetSaleForm() {
 
 function handleSaleSubmit(event) {
   event.preventDefault();
+  const editingId = els.editingSaleId.value;
+  const oldSale = editingId ? state.sales.find(sale => sale.id === editingId) : null;
+  if (isQuickSaleMode()) return handleQuickSaleSubmit(editingId, oldSale);
   if (saleCart.length) return saveCartSale();
   const product = getProduct(els.saleProduct.value);
   const quantity = Number(els.saleQuantity.value);
-  const editingId = els.editingSaleId.value;
-  const oldSale = editingId ? state.sales.find(sale => sale.id === editingId) : null;
   const availableStock = product ? product.stock + (oldSale && oldSale.productId === product.id ? Number(oldSale.quantity) : 0) : 0;
   if (!product) return showToast("Cadastre um produto primeiro.");
   if (quantity > availableStock) return showToast("Não tem essa quantidade em estoque.");
@@ -987,9 +1168,17 @@ function editSale(id) {
   const sale = state.sales.find(item => item.id === id);
   if (!sale) return;
   els.editingSaleId.value = sale.id;
-  els.saleProduct.value = sale.productId;
-  els.saleQuantity.value = sale.quantity;
-  els.saleDiscount.value = sale.discount || 0;
+  if (sale.quickSale || !sale.productId) {
+    els.saleMode.value = "amount";
+    els.quickSaleAmount.value = saleTotals(sale).revenue;
+    els.quickSaleNote.value = sale.note || "";
+    els.saleDiscount.value = 0;
+  } else {
+    els.saleMode.value = "product";
+    els.saleProduct.value = sale.productId;
+    els.saleQuantity.value = sale.quantity;
+    els.saleDiscount.value = sale.discount || 0;
+  }
   els.saleDate.value = sale.date;
   els.customerName.value = sale.customer || "";
   els.paymentStatus.value = paymentSelectValueForSale(sale);
@@ -1003,12 +1192,13 @@ function editSale(id) {
 function deleteSale(id) {
   const sale = state.sales.find(item => item.id === id);
   if (!sale) return;
-  if (!confirm("Excluir esta venda e devolver o produto ao estoque?")) return;
+  const message = sale.quickSale || !sale.productId ? "Excluir esta venda por valor?" : "Excluir esta venda e devolver o produto ao estoque?";
+  if (!confirm(message)) return;
   logic.applySaleStockChange(state.products, sale, null);
   state.sales = state.sales.filter(item => item.id !== id);
   if (els.editingSaleId.value === id) resetSaleForm();
   render();
-  showToast("Venda excluída e estoque devolvido.");
+  showToast(sale.quickSale || !sale.productId ? "Venda por valor excluída." : "Venda excluída e estoque devolvido.");
 }
 function editProduct(id) {
   const product = getProduct(id);
@@ -1286,6 +1476,9 @@ els.logoutBtn.addEventListener("click", () => {
 els.tabs.forEach(tab => tab.addEventListener("click", () => setScreen(tab.dataset.screen)));
 els.productForm.addEventListener("submit", handleProductSubmit);
 els.saleForm.addEventListener("submit", handleSaleSubmit);
+els.saleMode.addEventListener("change", () => { if (isQuickSaleMode() && saleCart.length) clearSaleCart(); updateSalePreview(); });
+els.quickSaleAmount.addEventListener("input", updateSalePreview);
+els.quickSaleNote.addEventListener("input", updateSalePreview);
 els.purchaseForm.addEventListener("submit", handlePurchaseSubmit);
 els.saleProductSearch.addEventListener("input", () => { renderProductOptions(); updateSalePreview(); });
 els.addToCartBtn.addEventListener("click", addCurrentItemToCart);
@@ -1304,6 +1497,8 @@ els.purchaseProduct.addEventListener("change", () => {
 });
 els.purchaseQuantity.addEventListener("input", updatePurchasePreview);
 els.purchaseUnitCost.addEventListener("input", updatePurchasePreview);
+els.stockCheckForm.addEventListener("submit", handleStockCheckSubmit);
+els.stockCheckTable.addEventListener("input", event => { if (event.target.dataset.stockCount) refreshStockCheckDiffs(); });
 els.reportFilter.addEventListener("change", renderReports);
 els.reportStart.addEventListener("input", renderReports);
 els.reportEnd.addEventListener("input", renderReports);
@@ -1367,6 +1562,17 @@ if (sessionStorage.getItem(SESSION_KEY) === "sim") {
 } else {
   showLogin();
 }
+
+
+
+
+
+
+
+
+
+
+
 
 
 

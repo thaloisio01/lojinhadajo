@@ -554,3 +554,32 @@ body[data-season="birthday-day"] .season-message {
 
 
 
+
+.helper-text {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.form-total small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.stock-check-wrap input {
+  width: 120px;
+  min-width: 90px;
+}
+
+.stock-negative {
+  color: var(--danger);
+  font-weight: 900;
+}
+
+.stock-positive {
+  color: var(--sage);
+  font-weight: 900;
+}
