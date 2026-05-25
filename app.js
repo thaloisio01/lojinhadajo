@@ -345,14 +345,14 @@ function fillProductSelect(select, emptyText, products = state.products) {
   products.forEach(product => {
     const option = document.createElement("option");
     option.value = product.id;
-    option.textContent = `${product.name} - estoque: ${product.stock}`;
+    option.textContent = `${product.name}${logic.isSupplyProduct(product) ? " (insumo)" : ""} - estoque: ${product.stock}`;
     select.appendChild(option);
   });
 }
 
 function renderProductOptions() {
   const selectedSaleProduct = els.saleProduct.value;
-  const saleProducts = logic.filterProducts(state.products, els.saleProductSearch.value);
+  const saleProducts = logic.filterProducts(logic.filterSellableProducts(state.products), els.saleProductSearch.value);
   fillProductSelect(els.saleProduct, "Cadastre um produto primeiro", saleProducts);
   if (saleProducts.some(product => product.id === selectedSaleProduct)) els.saleProduct.value = selectedSaleProduct;
   fillProductSelect(els.purchaseProduct, "Cadastre um produto primeiro");
@@ -385,13 +385,14 @@ function renderProducts() {
 function renderPurchases() {
   const recent = [...state.purchases].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10);
   if (!recent.length) {
-    els.purchasesTable.innerHTML = '<tr><td colspan="6">Nenhuma compra registrada ainda.</td></tr>';
+    els.purchasesTable.innerHTML = '<tr><td colspan="7">Nenhuma compra registrada ainda.</td></tr>';
     return;
   }
   els.purchasesTable.innerHTML = recent.map(purchase => `
     <tr>
       <td>${formatDate(purchase.date)}</td>
       <td>${escapeHTML(purchase.productName)}</td>
+      <td>${escapeHTML(purchase.category || "Mercadoria")}</td>
       <td>${purchase.quantity}</td>
       <td>${money(purchase.unitCost)}</td>
       <td>${money(purchase.quantity * purchase.unitCost)}</td>
@@ -529,7 +530,7 @@ function renderOfficialMonthSummary(isMonth, period, periodLabel) {
     return;
   }
 
-  const summary = logic.monthlyBusinessSummary(state.sales, state.purchases, period);
+  const summary = logic.monthlyBusinessSummary(state.sales, state.purchases, period, state.products);
   const debtors = summary.debtors.length ? summary.debtors.map(debtor => `
     <div class="summary-line debtor-summary"><span>${escapeHTML(debtor.customer)}<small>${debtor.salesCount} venda(s), prazo ${formatDate(debtor.nextDueDate)}</small></span><strong>${money(debtor.total)}</strong></div>
   `).join("") : '<div class="summary-line"><span>Lista de devedores</span><strong>Ninguém devendo neste mês</strong></div>';
@@ -545,9 +546,11 @@ function renderOfficialMonthSummary(isMonth, period, periodLabel) {
     </div>
     <div class="official-grid">
       <div class="summary-line"><span>Vendido no mês</span><strong>${money(summary.soldTotal)}</strong></div>
-      <div class="summary-line"><span>Lucro estimado</span><strong>${money(summary.estimatedProfit)}</strong></div>
+      <div class="summary-line"><span>Lucro bruto</span><strong>${money(summary.estimatedProfit)}</strong></div>
       <div class="summary-line"><span>Pendente para receber</span><strong>${money(summary.pendingTotal)}</strong></div>
-      <div class="summary-line"><span>Compras feitas</span><strong>${money(summary.purchasesTotal)}</strong></div>
+      <div class="summary-line"><span>Mercadorias compradas</span><strong>${money(summary.purchasesTotal)}</strong></div>
+      <div class="summary-line"><span>Insumos / materiais</span><strong>${money(summary.suppliesTotal)}</strong></div>
+      <div class="summary-line balance-line"><span>Lucro final estimado</span><strong>${money(summary.finalEstimatedProfit)}</strong></div>
       <div class="summary-line balance-line"><span>Saldo estimado</span><strong>${money(summary.estimatedBalance)}</strong></div>
     </div>
     <h4>Lista de devedores do mês</h4>
@@ -788,10 +791,19 @@ function renderReports() {
   });
   const allRevenue = sum(filteredSales, sale => saleTotals(sale).revenue);
   const allProfit = sum(filteredSales, sale => saleTotals(sale).profit);
-  const stockSaleValue = sum(state.products, product => product.price * product.stock);
-  const stockCost = sum(state.products, product => product.cost * product.stock);
+  const sellableProducts = logic.filterSellableProducts(state.products);
+  const stockSaleValue = sum(sellableProducts, product => product.price * product.stock);
+  const stockCost = sum(sellableProducts, product => product.cost * product.stock);
+  const filteredPurchases = state.purchases.filter(purchase => {
+    if (range.start && purchase.date < range.start) return false;
+    if (range.end && purchase.date > range.end) return false;
+    return true;
+  });
+  const purchaseTotals = logic.purchaseBreakdown(filteredPurchases, state.products);
   document.getElementById("allRevenue").textContent = money(allRevenue);
   document.getElementById("allProfit").textContent = money(allProfit);
+  document.getElementById("suppliesExpense").textContent = money(purchaseTotals.suppliesTotal);
+  document.getElementById("finalProfit").textContent = money(allProfit - purchaseTotals.suppliesTotal);
   document.getElementById("stockSaleValue").textContent = money(stockSaleValue);
   document.getElementById("expectedProfit").textContent = money(stockSaleValue - stockCost);
 
@@ -1151,6 +1163,8 @@ function handlePurchaseSubmit(event) {
     id: uid("purchase"),
     productId: product.id,
     productName: product.name,
+    category: product.category || "Mercadoria",
+    purchaseKind: logic.isSupplyProduct(product) ? "supply" : "merchandise",
     quantity,
     unitCost,
     date: els.purchaseDate.value,
@@ -1562,6 +1576,9 @@ if (sessionStorage.getItem(SESSION_KEY) === "sim") {
 } else {
   showLogin();
 }
+
+
+
 
 
 

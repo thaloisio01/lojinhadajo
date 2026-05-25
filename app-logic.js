@@ -16,6 +16,38 @@
   }
 
 
+
+  function categoryText(item) {
+    return String(item?.category || item?.productCategory || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  }
+
+  function isSupplyProduct(product) {
+    const category = categoryText(product);
+    return category.includes("insumo") || category.includes("material");
+  }
+
+  function filterSellableProducts(products) {
+    return (products || []).filter(product => !isSupplyProduct(product));
+  }
+
+  function purchaseCategory(purchase, products) {
+    if (purchase.category) return purchase.category;
+    const product = (products || []).find(item => item.id === purchase.productId || item.name === purchase.productName);
+    return product?.category || "";
+  }
+
+  function purchaseBreakdown(purchases, products, month) {
+    const inPeriod = (purchases || []).filter(purchase => !month || (purchase.date && purchase.date.slice(0, 7) === month));
+    let merchandiseTotal = 0;
+    let suppliesTotal = 0;
+    inPeriod.forEach(purchase => {
+      const total = Number(purchase.quantity || 0) * Number(purchase.unitCost || 0);
+      const category = purchaseCategory(purchase, products);
+      if (isSupplyProduct({ category })) suppliesTotal += total;
+      else merchandiseTotal += total;
+    });
+    return { merchandiseTotal, suppliesTotal, total: merchandiseTotal + suppliesTotal };
+  }
   function filterProducts(products, query) {
     const normalizedQuery = normalizeProductName(query);
     if (!normalizedQuery) return products.slice();
@@ -62,7 +94,7 @@
 
   function quickSaleEstimate(products, value) {
     const revenue = roundMoney(Math.max(Number(value || 0), 0));
-    const validProducts = (products || []).filter(product => Number(product.price || 0) > 0);
+    const validProducts = filterSellableProducts(products || []).filter(product => Number(product.price || 0) > 0);
     const totalPrice = sum(validProducts, product => Number(product.price || 0));
     const totalProfit = sum(validProducts, product => Math.max(Number(product.price || 0) - Number(product.cost || 0), 0));
     const margin = totalPrice > 0 ? totalProfit / totalPrice : 0;
@@ -81,7 +113,7 @@
       const difference = countedStock - previousStock;
       if (difference === 0) return;
       adjustments.push({ productId: product.id, productName: product.name, previousStock, countedStock, difference });
-      if (difference < 0) {
+      if (difference < 0 && !isSupplyProduct(product)) {
         const quantitySold = Math.abs(difference);
         const unitCost = Number(product.cost || 0);
         const unitPrice = Number(product.price || 0);
@@ -217,10 +249,10 @@
     };
   }
 
-  function monthlyBusinessSummary(sales, purchases, month) {
+  function monthlyBusinessSummary(sales, purchases, month, products) {
     const closing = monthlyClosingStats(sales, month);
-    const purchasesInMonth = purchases.filter(purchase => purchase.date && purchase.date.slice(0, 7) === month);
-    const purchasesTotal = sum(purchasesInMonth, purchase => Number(purchase.quantity || 0) * Number(purchase.unitCost || 0));
+    const purchaseTotals = purchaseBreakdown(purchases, products, month);
+    const purchasesTotal = purchaseTotals.merchandiseTotal;
     const debtorMap = new Map();
 
     sales
@@ -237,7 +269,10 @@
     return {
       ...closing,
       purchasesTotal,
-      estimatedBalance: closing.receivedTotal - purchasesTotal,
+      suppliesTotal: purchaseTotals.suppliesTotal,
+      totalPurchases: purchaseTotals.total,
+      finalEstimatedProfit: closing.estimatedProfit - purchaseTotals.suppliesTotal,
+      estimatedBalance: closing.receivedTotal - purchaseTotals.total,
       debtors: Array.from(debtorMap.values()).sort((a, b) => b.total - a.total || a.customer.localeCompare(b.customer))
     };
   }
@@ -363,8 +398,10 @@
       }));
   }
 
-  return { saleTotals, normalizeProductName, filterProducts, cartTotals, quickSaleEstimate, stockConferencePlan, hasDuplicateProductName, profitPercent, monthStats, monthComparison, monthHighlights, customerRankings, closingStats, monthlyClosingStats, monthlyBusinessSummary, seasonalThemeInfo, saleReceiptText, applySaleStockChange, shoppingList };
+  return { saleTotals, normalizeProductName, filterProducts, filterSellableProducts, isSupplyProduct, purchaseBreakdown, cartTotals, quickSaleEstimate, stockConferencePlan, hasDuplicateProductName, profitPercent, monthStats, monthComparison, monthHighlights, customerRankings, closingStats, monthlyClosingStats, monthlyBusinessSummary, seasonalThemeInfo, saleReceiptText, applySaleStockChange, shoppingList };
 });
+
+
 
 
 

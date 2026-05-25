@@ -174,6 +174,7 @@
             <option value="Biscoitos">Biscoitos</option>
             <option value="Entrega">Entrega</option>
             <option value="Evento">Evento</option>
+            <option value="Insumos / Materiais">Insumos / Materiais</option>
             <option value="Outros">Outros</option>
           </select></label>
           <label>Preço que pagou<input id="productCost" type="number" min="0" step="0.01" placeholder="0,00" required></label>
@@ -196,7 +197,7 @@
           <div class="form-total"><span>Total da compra</span><strong id="purchasePreview">R$ 0,00</strong></div>
           <button class="primary" type="submit">Salvar compra</button>
         </form>
-        <section class="panel"><h3>Últimas compras</h3><div class="table-wrap"><table><thead><tr><th>Data</th><th>Produto</th><th>Qtd.</th><th>Pago un.</th><th>Total</th><th>Obs.</th></tr></thead><tbody id="purchasesTable"></tbody></table></div></section>
+        <section class="panel"><h3>Últimas compras</h3><div class="table-wrap"><table><thead><tr><th>Data</th><th>Produto</th><th>Categoria</th><th>Qtd.</th><th>Pago un.</th><th>Total</th><th>Obs.</th></tr></thead><tbody id="purchasesTable"></tbody></table></div></section>
       </section>
 
       <section id="closing" class="screen" aria-labelledby="closingTitle">
@@ -263,7 +264,9 @@
         </section>
         <div class="metrics">
           <article class="metric"><i class="metric-icon">R$</i><span>Total vendido no período</span><strong id="allRevenue">R$ 0,00</strong></article>
-          <article class="metric"><i class="metric-icon">%</i><span>Lucro no período</span><strong id="allProfit">R$ 0,00</strong></article>
+          <article class="metric"><i class="metric-icon">%</i><span>Lucro bruto no período</span><strong id="allProfit">R$ 0,00</strong></article>
+          <article class="metric"><i class="metric-icon">I</i><span>Insumos no período</span><strong id="suppliesExpense">R$ 0,00</strong></article>
+          <article class="metric"><i class="metric-icon">L</i><span>Lucro final estimado</span><strong id="finalProfit">R$ 0,00</strong></article>
           <article class="metric"><i class="metric-icon">#</i><span>Valor em estoque</span><strong id="stockSaleValue">R$ 0,00</strong></article>
           <article class="metric"><i class="metric-icon">+</i><span>Lucro se vender tudo</span><strong id="expectedProfit">R$ 0,00</strong></article>
         </div>
@@ -280,6 +283,10 @@
   <script src="app.js"></script>
 </body>
 </html>
+
+
+
+
 
 
 
