@@ -71,6 +71,8 @@ const els = {
   editingSaleId: document.getElementById("editingSaleId"),
   saleSubmitBtn: document.getElementById("saleSubmitBtn"),
   saleMode: document.getElementById("saleMode"),
+  saleCategoryWrap: document.getElementById("saleCategoryWrap"),
+  saleCategory: document.getElementById("saleCategory"),
   saleProductSearchWrap: document.getElementById("saleProductSearchWrap"),
   saleProductWrap: document.getElementById("saleProductWrap"),
   saleQuantityWrap: document.getElementById("saleQuantityWrap"),
@@ -352,7 +354,8 @@ function fillProductSelect(select, emptyText, products = state.products) {
 
 function renderProductOptions() {
   const selectedSaleProduct = els.saleProduct.value;
-  const saleProducts = logic.filterProducts(logic.filterSellableProducts(state.products), els.saleProductSearch.value);
+  const saleBaseProducts = logic.filterProductsByCategory(logic.filterSellableProducts(state.products), els.saleCategory.value);
+  const saleProducts = logic.filterProducts(saleBaseProducts, els.saleProductSearch.value);
   fillProductSelect(els.saleProduct, "Cadastre um produto primeiro", saleProducts);
   if (saleProducts.some(product => product.id === selectedSaleProduct)) els.saleProduct.value = selectedSaleProduct;
   fillProductSelect(els.purchaseProduct, "Cadastre um produto primeiro");
@@ -721,7 +724,7 @@ function renderDashboard() {
 
   renderCustomerRankings();
 
-  const lowStock = state.products.filter(product => product.stock <= product.minStock);
+  const lowStock = logic.shoppingList(state.products);
   document.getElementById("lowStockList").innerHTML = lowStock.length ? lowStock.map(product => `
     <div class="list-item"><div><strong>${escapeHTML(product.name)}</strong><small>Comprar mais quando puder</small></div><span class="badge late">${product.stock}</span></div>
   `).join("") : "Nenhum produto acabando agora.";
@@ -1040,12 +1043,13 @@ function isQuickSaleMode() {
 
 function setSaleModeUI() {
   const quick = isQuickSaleMode();
-  [els.saleProductSearchWrap, els.saleProductWrap, els.saleQuantityWrap, els.saleDiscountWrap].forEach(element => element?.classList.toggle("hidden", quick));
+  [els.saleCategoryWrap, els.saleProductSearchWrap, els.saleProductWrap, els.saleQuantityWrap, els.saleDiscountWrap].forEach(element => element?.classList.toggle("hidden", quick));
   [els.quickSaleAmountWrap, els.quickSaleNoteWrap].forEach(element => element?.classList.toggle("hidden", !quick));
   els.saleProduct.disabled = quick;
   els.saleProduct.required = !quick;
   els.saleQuantity.disabled = quick;
   els.saleQuantity.required = !quick;
+  els.saleCategory.disabled = quick;
   els.saleProductSearch.disabled = quick;
   els.saleDiscount.disabled = quick;
   els.addToCartBtn.disabled = quick || Boolean(els.editingSaleId.value);
@@ -1494,6 +1498,7 @@ els.saleMode.addEventListener("change", () => { if (isQuickSaleMode() && saleCar
 els.quickSaleAmount.addEventListener("input", updateSalePreview);
 els.quickSaleNote.addEventListener("input", updateSalePreview);
 els.purchaseForm.addEventListener("submit", handlePurchaseSubmit);
+els.saleCategory.addEventListener("change", () => { renderProductOptions(); updateSalePreview(); });
 els.saleProductSearch.addEventListener("input", () => { renderProductOptions(); updateSalePreview(); });
 els.addToCartBtn.addEventListener("click", addCurrentItemToCart);
 els.saleProduct.addEventListener("change", updateSalePreview);
@@ -1576,6 +1581,8 @@ if (sessionStorage.getItem(SESSION_KEY) === "sim") {
 } else {
   showLogin();
 }
+
+
 
 
 

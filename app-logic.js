@@ -52,6 +52,12 @@
     });
     return { merchandiseTotal, suppliesTotal, total: merchandiseTotal + suppliesTotal };
   }
+
+  function filterProductsByCategory(products, category) {
+    const normalizedCategory = normalizeProductName(category);
+    if (!normalizedCategory) return (products || []).slice();
+    return (products || []).filter(product => normalizeProductName(product.category) === normalizedCategory);
+  }
   function filterProducts(products, query) {
     const normalizedQuery = normalizeProductName(query);
     if (!normalizedQuery) return products.slice();
@@ -402,8 +408,9 @@
       }));
   }
 
-  return { saleTotals, normalizeProductName, sortProductsByName, filterProducts, filterSellableProducts, isSupplyProduct, purchaseBreakdown, cartTotals, quickSaleEstimate, stockConferencePlan, hasDuplicateProductName, profitPercent, monthStats, monthComparison, monthHighlights, customerRankings, closingStats, monthlyClosingStats, monthlyBusinessSummary, seasonalThemeInfo, saleReceiptText, applySaleStockChange, shoppingList };
+  return { saleTotals, normalizeProductName, sortProductsByName, filterProducts, filterProductsByCategory, filterSellableProducts, isSupplyProduct, purchaseBreakdown, cartTotals, quickSaleEstimate, stockConferencePlan, hasDuplicateProductName, profitPercent, monthStats, monthComparison, monthHighlights, customerRankings, closingStats, monthlyClosingStats, monthlyBusinessSummary, seasonalThemeInfo, saleReceiptText, applySaleStockChange, shoppingList };
 });
+
 
 
 

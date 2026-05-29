@@ -126,6 +126,20 @@
         <form id="saleForm" class="panel form-grid">
           <input id="editingSaleId" type="hidden">
           <label>Tipo de venda<select id="saleMode"><option value="product">Com produto marcado</option><option value="amount">Venda só pelo valor</option></select></label>
+          <label id="saleCategoryWrap">Categoria<select id="saleCategory">
+            <option value="">Todas as categorias</option>
+            <option value="Bebidas">Bebidas</option>
+            <option value="Doces">Doces</option>
+            <option value="Chocolate">Chocolate</option>
+            <option value="Salgadinhos">Salgadinhos</option>
+            <option value="Lanches">Lanches</option>
+            <option value="Bolo">Bolo</option>
+            <option value="Pão">Pão</option>
+            <option value="Biscoitos">Biscoitos</option>
+            <option value="Entrega">Entrega</option>
+            <option value="Evento">Evento</option>
+            <option value="Outros">Outros</option>
+          </select></label>
           <label id="saleProductSearchWrap">Buscar produto<input id="saleProductSearch" type="search" placeholder="Ex.: coca, bolo, café"></label>
           <label id="saleProductWrap">Produto<select id="saleProduct" required></select></label>
           <label id="saleQuantityWrap">Quantidade<input id="saleQuantity" type="number" min="1" step="1" value="1" required></label>
@@ -283,6 +297,8 @@
   <script src="app.js"></script>
 </body>
 </html>
+
+
 
 
 
