@@ -17,6 +17,10 @@
 
 
 
+
+  function sortProductsByName(products) {
+    return (products || []).slice().sort((a, b) => normalizeProductName(a.name).localeCompare(normalizeProductName(b.name), "pt-BR") || String(a.name || "").localeCompare(String(b.name || ""), "pt-BR"));
+  }
   function categoryText(item) {
     return String(item?.category || item?.productCategory || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   }
@@ -398,8 +402,9 @@
       }));
   }
 
-  return { saleTotals, normalizeProductName, filterProducts, filterSellableProducts, isSupplyProduct, purchaseBreakdown, cartTotals, quickSaleEstimate, stockConferencePlan, hasDuplicateProductName, profitPercent, monthStats, monthComparison, monthHighlights, customerRankings, closingStats, monthlyClosingStats, monthlyBusinessSummary, seasonalThemeInfo, saleReceiptText, applySaleStockChange, shoppingList };
+  return { saleTotals, normalizeProductName, sortProductsByName, filterProducts, filterSellableProducts, isSupplyProduct, purchaseBreakdown, cartTotals, quickSaleEstimate, stockConferencePlan, hasDuplicateProductName, profitPercent, monthStats, monthComparison, monthHighlights, customerRankings, closingStats, monthlyClosingStats, monthlyBusinessSummary, seasonalThemeInfo, saleReceiptText, applySaleStockChange, shoppingList };
 });
+
 
 
 

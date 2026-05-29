@@ -342,7 +342,7 @@ function fillProductSelect(select, emptyText, products = state.products) {
     return;
   }
   select.disabled = false;
-  products.forEach(product => {
+  logic.sortProductsByName(products).forEach(product => {
     const option = document.createElement("option");
     option.value = product.id;
     option.textContent = `${product.name}${logic.isSupplyProduct(product) ? " (insumo)" : ""} - estoque: ${product.stock}`;
@@ -362,7 +362,7 @@ function renderProducts() {
     els.productsTable.innerHTML = '<tr><td colspan="8">Nenhum produto cadastrado ainda.</td></tr>';
     return;
   }
-  els.productsTable.innerHTML = state.products.map(product => {
+  els.productsTable.innerHTML = logic.sortProductsByName(state.products).map(product => {
     const profit = product.price - product.cost;
     const stockClass = product.stock <= product.minStock ? "badge late" : "badge paid";
     return `
@@ -605,7 +605,7 @@ function renderStockConference() {
     els.stockCheckPreview.textContent = "Nenhuma diferença.";
     return;
   }
-  els.stockCheckTable.innerHTML = state.products.map(product => `
+  els.stockCheckTable.innerHTML = logic.sortProductsByName(state.products).map(product => `
     <tr>
       <td><strong>${escapeHTML(product.name)}</strong></td>
       <td>${escapeHTML(product.category || "Sem categoria")}</td>
@@ -619,7 +619,7 @@ function renderStockConference() {
 function refreshStockCheckDiffs() {
   if (!els.stockCheckTable) return;
   const counts = stockCheckCountMap();
-  state.products.forEach(product => {
+  logic.sortProductsByName(state.products).forEach(product => {
     const cell = els.stockCheckTable.querySelector(`[data-stock-diff="${product.id}"]`);
     if (!cell) return;
     const difference = Number(counts[product.id] || 0) - Number(product.stock || 0);
@@ -1576,6 +1576,8 @@ if (sessionStorage.getItem(SESSION_KEY) === "sim") {
 } else {
   showLogin();
 }
+
+
 
 
 
