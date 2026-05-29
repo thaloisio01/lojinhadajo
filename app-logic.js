@@ -391,7 +391,7 @@
   function shoppingList(products) {
     return products
       .filter(product => Number(product.stock) <= Number(product.minStock))
-      .sort((a, b) => Number(a.stock) - Number(b.stock) || a.name.localeCompare(b.name))
+      .sort((a, b) => normalizeProductName(a.name).localeCompare(normalizeProductName(b.name), "pt-BR") || String(a.name || "").localeCompare(String(b.name || ""), "pt-BR"))
       .map(product => ({
         id: product.id,
         name: product.name,
@@ -404,6 +404,8 @@
 
   return { saleTotals, normalizeProductName, sortProductsByName, filterProducts, filterSellableProducts, isSupplyProduct, purchaseBreakdown, cartTotals, quickSaleEstimate, stockConferencePlan, hasDuplicateProductName, profitPercent, monthStats, monthComparison, monthHighlights, customerRankings, closingStats, monthlyClosingStats, monthlyBusinessSummary, seasonalThemeInfo, saleReceiptText, applySaleStockChange, shoppingList };
 });
+
+
 
 
 
