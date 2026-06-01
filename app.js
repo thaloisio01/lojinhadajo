@@ -355,7 +355,7 @@ function fillProductSelect(select, emptyText, products = state.products) {
 function renderProductOptions() {
   const selectedSaleProduct = els.saleProduct.value;
   const saleBaseProducts = logic.filterProductsByCategory(logic.filterSellableProducts(state.products), els.saleCategory.value);
-  const saleProducts = logic.filterProducts(saleBaseProducts, els.saleProductSearch.value);
+  const saleProducts = logic.sortProductsByName(logic.filterProducts(saleBaseProducts, els.saleProductSearch.value));
   fillProductSelect(els.saleProduct, "Cadastre um produto primeiro", saleProducts);
   if (saleProducts.some(product => product.id === selectedSaleProduct)) els.saleProduct.value = selectedSaleProduct;
   fillProductSelect(els.purchaseProduct, "Cadastre um produto primeiro");
@@ -1581,6 +1581,7 @@ if (sessionStorage.getItem(SESSION_KEY) === "sim") {
 } else {
   showLogin();
 }
+
 
 
 
