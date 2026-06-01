@@ -80,6 +80,58 @@
     };
   }
 
+
+  function saleDisplayRows(sales) {
+    const groups = new Map();
+    (sales || []).forEach((sale, index) => {
+      const groupId = sale.saleGroupId || "";
+      const key = groupId ? `group:${groupId}` : `sale:${sale.id || index}`;
+      if (!groups.has(key)) groups.set(key, { groupId, sales: [] });
+      groups.get(key).sales.push(sale);
+    });
+
+    return Array.from(groups.values()).map(group => {
+      const groupSales = group.sales;
+      const first = groupSales[0] || {};
+      const isGroup = Boolean(group.groupId && groupSales.length > 1);
+      if (!isGroup) {
+        const sale = first;
+        return {
+          id: sale.id,
+          sale,
+          sales: [sale],
+          isGroup: false,
+          saleGroupId: sale.saleGroupId || "",
+          salesCount: 1,
+          date: sale.date || "",
+          customer: sale.customer || "Cliente",
+          productName: sale.quickSale || (!sale.productId && !sale.productSnapshot?.name) ? "Venda por valor" : sale.productSnapshot?.name || "Produto",
+          category: sale.productSnapshot?.category || "-",
+          quantity: Number(sale.quantity || 0),
+          total: saleTotals(sale).revenue,
+          status: sale.status,
+          paymentType: sale.paymentType
+        };
+      }
+
+      return {
+        id: `group:${group.groupId}`,
+        sale: first,
+        sales: groupSales,
+        isGroup: true,
+        saleGroupId: group.groupId,
+        salesCount: groupSales.length,
+        date: first.date || "",
+        customer: first.customer || "Cliente",
+        productName: `Carrinho (${groupSales.length} ${groupSales.length === 1 ? "item" : "itens"})`,
+        category: "Venda com carrinho",
+        quantity: sum(groupSales, sale => Number(sale.quantity || 0)),
+        total: sum(groupSales, sale => saleTotals(sale).revenue),
+        status: groupSales.some(sale => sale.status === "pending") ? "pending" : first.status,
+        paymentType: first.paymentType
+      };
+    }).sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")) || String(b.id || "").localeCompare(String(a.id || "")));
+  }
   function sum(items, pick) {
     return items.reduce((total, item) => total + pick(item), 0);
   }
@@ -408,8 +460,10 @@
       }));
   }
 
-  return { saleTotals, normalizeProductName, sortProductsByName, filterProducts, filterProductsByCategory, filterSellableProducts, isSupplyProduct, purchaseBreakdown, cartTotals, quickSaleEstimate, stockConferencePlan, hasDuplicateProductName, profitPercent, monthStats, monthComparison, monthHighlights, customerRankings, closingStats, monthlyClosingStats, monthlyBusinessSummary, seasonalThemeInfo, saleReceiptText, applySaleStockChange, shoppingList };
+  return { saleTotals, saleDisplayRows, normalizeProductName, sortProductsByName, filterProducts, filterProductsByCategory, filterSellableProducts, isSupplyProduct, purchaseBreakdown, cartTotals, quickSaleEstimate, stockConferencePlan, hasDuplicateProductName, profitPercent, monthStats, monthComparison, monthHighlights, customerRankings, closingStats, monthlyClosingStats, monthlyBusinessSummary, seasonalThemeInfo, saleReceiptText, applySaleStockChange, shoppingList };
 });
+
+
 
 
 

@@ -419,25 +419,27 @@ function paymentSelectValueForSale(sale) {
   return sale.paymentType || "paid-now";
 }
 function renderSales() {
-  const recent = [...state.sales].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8);
+  const recent = logic.saleDisplayRows(state.sales).slice(0, 8);
   if (!recent.length) {
     els.recentSalesTable.innerHTML = '<tr><td colspan="8">Nenhuma venda registrada ainda.</td></tr>';
     return;
   }
-  els.recentSalesTable.innerHTML = recent.map(sale => {
-    const totals = saleTotals(sale);
-    const paidText = salePaymentLabel(sale);
-    const badgeClass = sale.status === "pending" ? "pending" : "paid";
+  els.recentSalesTable.innerHTML = recent.map(row => {
+    const paidText = salePaymentLabel(row.sale);
+    const badgeClass = row.status === "pending" ? "pending" : "paid";
+    const actions = row.isGroup
+      ? `<button class="secondary danger" type="button" data-delete-sale-group="${row.saleGroupId}">Excluir</button>`
+      : `<button class="secondary" type="button" data-edit-sale="${row.sale.id}">Editar</button><button class="secondary danger" type="button" data-delete-sale="${row.sale.id}">Excluir</button>`;
     return `
       <tr>
-        <td>${formatDate(sale.date)}</td>
-        <td>${escapeHTML(sale.customer || "Cliente")}</td>
-        <td>${escapeHTML(sale.productSnapshot.name)}</td>
-        <td>${escapeHTML(sale.productSnapshot.category || "-")}</td>
-        <td>${sale.quantity}</td>
-        <td>${money(totals.revenue)}</td>
+        <td>${formatDate(row.date)}</td>
+        <td>${escapeHTML(row.customer || "Cliente")}</td>
+        <td>${escapeHTML(row.productName)}</td>
+        <td>${escapeHTML(row.category || "-")}</td>
+        <td>${row.quantity}</td>
+        <td>${money(row.total)}</td>
         <td><span class="badge ${badgeClass}">${paidText}</span></td>
-        <td class="actions"><button class="secondary" type="button" data-edit-sale="${sale.id}">Editar</button><button class="secondary danger" type="button" data-delete-sale="${sale.id}">Excluir</button></td>
+        <td class="actions">${actions}</td>
       </tr>`;
   }).join("");
 }
@@ -846,6 +848,7 @@ function renderSaleCart() {
   els.cartCountLabel.textContent = saleCart.length === 1 ? "1 item" : `${saleCart.length} itens`;
   const totals = logic.cartTotals(saleCart, Number(els.saleDiscount.value || 0));
   els.cartTotal.textContent = money(totals.revenue);
+  if (saleCart.length) els.salePreview.textContent = money(totals.revenue);
   els.saleCartTable.innerHTML = saleCart.map(item => `
     <tr>
       <td>${escapeHTML(item.productSnapshot.name)}</td>
@@ -1218,6 +1221,17 @@ function deleteSale(id) {
   render();
   showToast(sale.quickSale || !sale.productId ? "Venda por valor excluída." : "Venda excluída e estoque devolvido.");
 }
+
+function deleteSaleGroup(groupId) {
+  const sales = state.sales.filter(item => item.saleGroupId === groupId);
+  if (!sales.length) return;
+  if (!confirm("Excluir este carrinho e devolver todos os produtos ao estoque?")) return;
+  sales.forEach(sale => logic.applySaleStockChange(state.products, sale, null));
+  state.sales = state.sales.filter(item => item.saleGroupId !== groupId);
+  if (sales.some(sale => els.editingSaleId.value === sale.id)) resetSaleForm();
+  render();
+  showToast("Carrinho excluído e estoque devolvido.");
+}
 function editProduct(id) {
   const product = getProduct(id);
   if (!product) return;
@@ -1533,8 +1547,10 @@ els.generateMonthSummary.addEventListener("click", () => {
 els.recentSalesTable.addEventListener("click", event => {
   const editId = event.target.dataset.editSale;
   const deleteId = event.target.dataset.deleteSale;
+  const deleteGroupId = event.target.dataset.deleteSaleGroup;
   if (editId) editSale(editId);
   if (deleteId) deleteSale(deleteId);
+  if (deleteGroupId) deleteSaleGroup(deleteGroupId);
 });
 els.productsTable.addEventListener("click", event => {
   const editId = event.target.dataset.editProduct;
@@ -1581,6 +1597,9 @@ if (sessionStorage.getItem(SESSION_KEY) === "sim") {
 } else {
   showLogin();
 }
+
+
+
 
 
 
