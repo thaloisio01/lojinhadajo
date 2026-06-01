@@ -404,18 +404,23 @@ function renderPurchases() {
 }
 
 function isPendingPaymentType(value) {
-  return value === "payday" || value === "voucher" || value === "pending";
+  return value === "payday" || value === "voucher-payday" || value === "voucher" || value === "pending";
 }
 
 function salePaymentLabel(sale) {
-  if (sale.status === "pending") return sale.paymentType === "payday" ? "Pagamento" : "Vale";
+  if (sale.status === "pending") {
+    if (sale.paymentType === "voucher-payday") return "Vale pagamento";
+    return sale.paymentType === "payday" ? "Pagamento" : "Vale";
+  }
   if (sale.paymentType === "payday") return "Pagamento recebido";
+  if (sale.paymentType === "voucher-payday") return "Vale pagamento recebido";
   if (sale.paymentType === "voucher") return "Vale recebido";
   return "Pago na hora";
 }
 
 function paymentSelectValueForSale(sale) {
-  if (sale.status === "pending") return sale.paymentType === "payday" ? "payday" : "voucher";
+  const pendingOptions = ["payday", "voucher-payday", "voucher"];
+  if (sale.status === "pending") return pendingOptions.includes(sale.paymentType) ? sale.paymentType : "voucher";
   return sale.paymentType || "paid-now";
 }
 function renderSales() {
@@ -1597,6 +1602,7 @@ if (sessionStorage.getItem(SESSION_KEY) === "sim") {
 } else {
   showLogin();
 }
+
 
 
 

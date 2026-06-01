@@ -148,7 +148,7 @@
           <label id="saleDiscountWrap">Desconto R$<input id="saleDiscount" type="number" min="0" step="0.01" value="0"></label>
           <label>Data da venda<input id="saleDate" type="date" required></label>
           <label>Cliente<input id="customerName" type="text" placeholder="Nome de quem comprou"></label>
-          <label>Pagamento<select id="paymentStatus"><option value="paid-now">Pago na hora</option><option value="payday">Pagamento</option><option value="voucher">Vale</option></select></label>
+          <label>Pagamento<select id="paymentStatus"><option value="paid-now">Pago na hora</option><option value="payday">Pagamento</option><option value="voucher-payday">Vale pagamento</option><option value="voucher">Vale</option></select></label>
           <label id="dueDateWrap">Data combinada<input id="dueDate" type="date"></label>
           <div class="form-total"><span>Total da venda</span><strong id="salePreview">R$ 0,00</strong><small id="quickSaleEstimateText"></small></div>
           <div class="form-actions"><button id="addToCartBtn" class="secondary" type="button">Adicionar ao carrinho</button><button id="saleSubmitBtn" class="primary" type="submit">Salvar venda</button><button id="cancelEditSale" class="secondary hidden" type="button">Cancelar edição</button></div>
@@ -297,6 +297,7 @@
   <script src="app.js"></script>
 </body>
 </html>
+
 
 
 

@@ -417,7 +417,11 @@
   }
 
   function salePaymentText(sale) {
-    if (sale.status === "pending") return sale.paymentType === "voucher" ? "Vale" : "Pagamento";
+    if (sale.status === "pending") {
+      if (sale.paymentType === "voucher-payday") return "Vale pagamento";
+      return sale.paymentType === "voucher" ? "Vale" : "Pagamento";
+    }
+    if (sale.paymentType === "voucher-payday") return "Vale pagamento recebido";
     if (sale.paymentType === "voucher") return "Vale recebido";
     if (sale.paymentType === "payday") return "Pagamento recebido";
     return "Pago na hora";
@@ -462,6 +466,7 @@
 
   return { saleTotals, saleDisplayRows, normalizeProductName, sortProductsByName, filterProducts, filterProductsByCategory, filterSellableProducts, isSupplyProduct, purchaseBreakdown, cartTotals, quickSaleEstimate, stockConferencePlan, hasDuplicateProductName, profitPercent, monthStats, monthComparison, monthHighlights, customerRankings, closingStats, monthlyClosingStats, monthlyBusinessSummary, seasonalThemeInfo, saleReceiptText, applySaleStockChange, shoppingList };
 });
+
 
 
 
