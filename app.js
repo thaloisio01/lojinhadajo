@@ -227,7 +227,12 @@ function formatAutoBackupTime() {
   return `Backup automático salvo em: ${formatBackupDateTime(snapshot.savedAt)}.`;
 }
 function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (error) {
+    console.error("Local save error", error);
+    setSyncStatus("Salvando online, mas o navegador recusou o backup local");
+  }
   saveAutomaticBackup();
   if (cloudReady && !cloudApplying) scheduleCloudPush();
 }
@@ -1720,6 +1725,23 @@ function sanitizedState() {
   };
 }
 
+function stateLastModified(data) {
+  const dates = [];
+  [data?.products, data?.sales, data?.purchases].forEach(list => {
+    if (!Array.isArray(list)) return;
+    list.forEach(item => {
+      if (item?.updatedAt) dates.push(item.updatedAt);
+      if (item?.createdAt) dates.push(item.createdAt);
+      if (item?.date) dates.push(item.date);
+    });
+  });
+  if (data?.lastBackupAt) dates.push(data.lastBackupAt);
+  return dates.reduce((latest, value) => {
+    const time = new Date(value).getTime();
+    return Number.isFinite(time) ? Math.max(latest, time) : latest;
+  }, 0);
+}
+
 function replaceState(nextState) {
   state.products = Array.isArray(nextState.products) ? nextState.products : [];
   state.sales = Array.isArray(nextState.sales) ? nextState.sales : [];
@@ -1803,7 +1825,17 @@ async function initSupabaseSync() {
 
     const cloudData = result.data?.data;
     const localData = sanitizedState();
-    if (cloudData && hasLocalBusinessData(cloudData)) {
+    if (cloudData && hasLocalBusinessData(cloudData) && hasLocalBusinessData(localData)) {
+      if (stateLastModified(localData) > stateLastModified(cloudData) + 1000) {
+        await pushCloudState(true);
+      } else {
+        cloudApplying = true;
+        replaceState(cloudData);
+        lastCloudJson = JSON.stringify(sanitizedState());
+        render();
+        cloudApplying = false;
+      }
+    } else if (cloudData && hasLocalBusinessData(cloudData)) {
       cloudApplying = true;
       replaceState(cloudData);
       lastCloudJson = JSON.stringify(sanitizedState());
@@ -1827,10 +1859,15 @@ async function initSupabaseSync() {
       .channel("lojinha-da-jo-sync")
       .on("postgres_changes", { event: "*", schema: "public", table: cloudTable, filter: `id=eq.${cloudRowId}` }, payload => {
         if (!payload.new?.data) return;
-        const incomingJson = JSON.stringify(payload.new.data);
+        const incomingData = payload.new.data;
+        const incomingJson = JSON.stringify(incomingData);
         if (incomingJson === lastCloudJson) return;
+        if (stateLastModified(sanitizedState()) > stateLastModified(incomingData) + 1000) {
+          scheduleCloudPush();
+          return;
+        }
         cloudApplying = true;
-        replaceState(payload.new.data);
+        replaceState(incomingData);
         lastCloudJson = incomingJson;
         render();
         cloudApplying = false;
@@ -1987,7 +2024,17 @@ els.installBtn.addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => navigator.serviceWorker.register("service-worker.js"));
+  let refreshingServiceWorker = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (refreshingServiceWorker) return;
+    refreshingServiceWorker = true;
+    window.location.reload();
+  });
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("service-worker.js")
+      .then(registration => registration.update())
+      .catch(error => console.error("Service worker error", error));
+  });
 }
 
 applySeasonalTheme();

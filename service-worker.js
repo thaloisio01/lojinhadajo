@@ -1,4 +1,4 @@
-const CACHE_NAME = "lojinha-da-jo-cache-v55";
+const CACHE_NAME = "lojinha-da-jo-cache-v58";
 const FILES = ["./", "./index.html", "./styles.css", "./app-logic.js", "./app.js", "./manifest.webmanifest", "./supabase-config.js", "./assets/logo-lojinha.png"];
 
 self.addEventListener("install", event => {
@@ -16,41 +16,16 @@ self.addEventListener("activate", event => {
 
 self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
-  event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request)));
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin) return;
+
+  event.respondWith(
+    fetch(event.request)
+      .then(response => {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+        return response;
+      })
+      .catch(() => caches.match(event.request).then(cached => cached || caches.match("./index.html")))
+  );
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
