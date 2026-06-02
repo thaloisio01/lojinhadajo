@@ -161,6 +161,7 @@ const els = {
   backupStatus: document.getElementById("backupStatus"),
   autoBackupStatus: document.getElementById("autoBackupStatus"),
   exportCsv: document.getElementById("exportCsv"),
+  exportExcel: document.getElementById("exportExcel"),
   exportJson: document.getElementById("exportJson"),
   importJson: document.getElementById("importJson"),
   installBtn: document.getElementById("installBtn"),
@@ -1397,6 +1398,109 @@ function exportCsv() {
   download("vendas-lojinha-da-jo.csv", rows.map(row => row.map(cell => `"${String(cell ?? "").replaceAll('"', '""')}"`).join(";")).join("\n"), "text/csv;charset=utf-8");
 }
 
+function xmlEscape(value) {
+  return String(value ?? "").replace(/[<>&'"]/g, char => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" }[char]));
+}
+
+function excelNumber(value) {
+  const number = Number(value || 0);
+  return Number.isFinite(number) ? Math.round(number * 100) / 100 : 0;
+}
+
+function excelCell(value, type = "String", formula = "", style = "") {
+  const attrs = [];
+  if (style) attrs.push(`ss:StyleID="${style}"`);
+  if (formula) attrs.push(`ss:Formula="${xmlEscape(formula)}"`);
+  const data = type === "Number" ? excelNumber(value) : xmlEscape(value);
+  return `<Cell${attrs.length ? " " + attrs.join(" ") : ""}><Data ss:Type="${type}">${data}</Data></Cell>`;
+}
+
+function excelRow(cells, style = "") {
+  return `<Row>${cells.map(cell => Array.isArray(cell) ? excelCell(cell[0], cell[1] || "String", cell[2] || "", cell[3] || style) : excelCell(cell, "String", "", style)).join("")}</Row>`;
+}
+
+function excelHeader(labels) {
+  return excelRow(labels.map(label => [label, "String", "", "Header"]));
+}
+
+function excelSheet(name, rows) {
+  return `<Worksheet ss:Name="${xmlEscape(name)}"><Table>${rows.join("")}</Table></Worksheet>`;
+}
+
+function excelWorkbook(sheets) {
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<?mso-application progid="Excel.Sheet"?>\n<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Styles><Style ss:ID="Header"><Font ss:Bold="1"/><Interior ss:Color="#f4dddd" ss:Pattern="Solid"/></Style><Style ss:ID="Money"><NumberFormat ss:Format="Currency"/></Style><Style ss:ID="Percent"><NumberFormat ss:Format="0.0%"/></Style></Styles>${sheets.join("")}</Workbook>`;
+}
+
+function exportExcelComplete() {
+  const sales = state.sales || [];
+  const purchases = state.purchases || [];
+  const products = state.products || [];
+  const pendingSales = sales.filter(sale => sale.status === "pending");
+  const soldTotal = sum(sales, sale => saleTotals(sale).revenue);
+  const salesProfit = sum(sales, sale => saleTotals(sale).profit);
+  const purchaseTotals = logic.purchaseBreakdown(purchases, products);
+  const pendingTotal = sum(pendingSales, sale => saleTotals(sale).revenue);
+  const stockSaleValue = sum(logic.filterSellableProducts(products), product => Number(product.price || 0) * Number(product.stock || 0));
+  const stockCost = sum(logic.filterSellableProducts(products), product => Number(product.cost || 0) * Number(product.stock || 0));
+
+  const resumoRows = [
+    excelHeader(["Resumo geral", "Valor", "Como foi calculado"]),
+    excelRow([["Total vendido", "String"], [soldTotal, "Number", "", "Money"], ["Soma dos totais da aba Vendas", "String"]]),
+    excelRow([["Lucro das vendas", "String"], [salesProfit, "Number", "", "Money"], ["Total da venda - custo total", "String"]]),
+    excelRow([["Total comprado", "String"], [purchaseTotals.total, "Number", "", "Money"], ["Soma dos totais da aba Compras", "String"]]),
+    excelRow([["Mercadorias compradas", "String"], [purchaseTotals.merchandiseTotal, "Number", "", "Money"], ["Compras sem insumos/materiais", "String"]]),
+    excelRow([["Insumos / materiais", "String"], [purchaseTotals.suppliesTotal, "Number", "", "Money"], ["Compras da categoria Insumos / Materiais", "String"]]),
+    excelRow([["Valor pendente", "String"], [pendingTotal, "Number", "", "Money"], ["Vendas pendentes", "String"]]),
+    excelRow([["Valor em estoque", "String"], [stockSaleValue, "Number", "", "Money"], ["Estoque x preco de venda", "String"]]),
+    excelRow([["Lucro se vender tudo", "String"], [stockSaleValue - stockCost, "Number", "", "Money"], ["Valor em estoque - custo em estoque", "String"]])
+  ];
+
+  const vendasRows = [excelHeader(["Data", "Cliente", "Produto", "Categoria", "Qtd.", "Valor un.", "Desconto", "Total venda", "Custo un.", "Custo total", "Lucro", "Pagamento", "Prazo", "Recebido"] )];
+  sales.forEach(sale => {
+    const totals = saleTotals(sale);
+    const unitCost = Number(sale.unitCost ?? sale.productSnapshot?.cost ?? 0);
+    vendasRows.push(excelRow([
+      [sale.date || "", "String"], [sale.customer || "Cliente", "String"], [sale.productSnapshot?.name || "Produto", "String"], [sale.productSnapshot?.category || "", "String"],
+      [sale.quantity || 0, "Number"], [sale.unitPrice ?? sale.productSnapshot?.price ?? 0, "Number", "", "Money"], [sale.discount || 0, "Number", "", "Money"],
+      [totals.revenue, "Number", "=RC[-3]*RC[-2]-RC[-1]", "Money"], [unitCost, "Number", "", "Money"], [Number(sale.totalCost ?? unitCost * Number(sale.quantity || 0)), "Number", "=RC[-5]*RC[-1]", "Money"], [totals.profit, "Number", "=RC[-3]-RC[-1]", "Money"],
+      [salePaymentLabel(sale), "String"], [sale.dueDate || "", "String"], [sale.paidDate || "", "String"]
+    ]));
+  });
+
+  const comprasRows = [excelHeader(["Data", "Produto", "Categoria", "Qtd.", "Valor pago un.", "Total pago", "Observacao"] )];
+  purchases.forEach(purchase => {
+    comprasRows.push(excelRow([
+      [purchase.date || "", "String"], [purchase.productName || "Produto", "String"], [purchase.category || "Mercadoria", "String"], [purchase.quantity || 0, "Number"], [purchase.unitCost || 0, "Number", "", "Money"], [Number(purchase.quantity || 0) * Number(purchase.unitCost || 0), "Number", "=RC[-2]*RC[-1]", "Money"], [purchase.note || "", "String"]
+    ]));
+  });
+
+  const produtosRows = [excelHeader(["Produto", "Categoria", "Estoque", "Custo medio", "Preco venda", "Lucro un.", "Lucro %", "Valor em estoque", "Custo em estoque", "Lucro se vender tudo"] )];
+  logic.sortProductsByName(products).forEach(product => {
+    const stock = Number(product.stock || 0);
+    const cost = Number(product.cost || 0);
+    const price = Number(product.price || 0);
+    produtosRows.push(excelRow([
+      [product.name || "Produto", "String"], [product.category || "", "String"], [stock, "Number"], [cost, "Number", "", "Money"], [price, "Number", "", "Money"],
+      [price - cost, "Number", "=RC[-1]-RC[-2]", "Money"], [cost > 0 ? (price - cost) / cost : 0, "Number", "=IF(RC[-3]>0,RC[-2]/RC[-3],0)", "Percent"],
+      [stock * price, "Number", "=RC[-5]*RC[-3]", "Money"], [stock * cost, "Number", "=RC[-6]*RC[-5]", "Money"], [stock * (price - cost), "Number", "=RC[-2]-RC[-1]", "Money"]
+    ]));
+  });
+
+  const pendenciasRows = [excelHeader(["Cliente", "Produto", "Categoria", "Valor", "Prazo", "Pagamento", "Status"] )];
+  pendingSales.forEach(sale => {
+    pendenciasRows.push(excelRow([[sale.customer || "Cliente", "String"], [sale.productSnapshot?.name || "Produto", "String"], [sale.productSnapshot?.category || "", "String"], [saleTotals(sale).revenue, "Number", "", "Money"], [sale.dueDate || "", "String"], [salePaymentLabel(sale), "String"], [sale.dueDate && sale.dueDate < todayISO() ? "Vencido" : "Pendente", "String"]]));
+  });
+
+  const workbook = excelWorkbook([
+    excelSheet("Resumo", resumoRows),
+    excelSheet("Vendas", vendasRows),
+    excelSheet("Compras", comprasRows),
+    excelSheet("Produtos", produtosRows),
+    excelSheet("Pendencias", pendenciasRows)
+  ]);
+  download(`lojinha-da-jo-completo-${todayISO()}.xls`, workbook, "application/vnd.ms-excel;charset=utf-8");
+  showToast("Excel completo baixado.");
+}
 function exportJson() {
   state.lastBackupAt = new Date().toISOString();
   saveState();
@@ -1701,6 +1805,7 @@ els.cancelEditProduct.addEventListener("click", () => {
 els.showPending.addEventListener("click", () => { debtView = "pending"; renderDebts(); });
 els.showPaidLater.addEventListener("click", () => { debtView = "paid-later"; renderDebts(); });
 els.exportCsv.addEventListener("click", exportCsv);
+els.exportExcel.addEventListener("click", exportExcelComplete);
 els.exportJson.addEventListener("click", exportJson);
 els.importJson.addEventListener("change", importJson);
 
@@ -1728,6 +1833,7 @@ if (sessionStorage.getItem(SESSION_KEY) === "sim") {
 } else {
   showLogin();
 }
+
 
 
 
