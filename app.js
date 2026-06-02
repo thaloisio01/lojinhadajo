@@ -1,4 +1,4 @@
-﻿const STORAGE_KEY = "lojinha-da-jo-v1";
+const STORAGE_KEY = "lojinha-da-jo-v1";
 const SESSION_KEY = "lojinha-da-jo-logada";
 const AUTO_BACKUP_KEY = "lojinha-da-jo-auto-backup";
 const LOGIN_USER = "Joelma";
@@ -158,6 +158,12 @@ const els = {
   reportEndWrap: document.getElementById("reportEndWrap"),
   reportPeriodLabel: document.getElementById("reportPeriodLabel"),
   monthComparisonText: document.getElementById("monthComparisonText"),
+  salesByDayChart: document.getElementById("salesByDayChart"),
+  profitByMonthChart: document.getElementById("profitByMonthChart"),
+  topProductsRanking: document.getElementById("topProductsRanking"),
+  topClientsRanking: document.getElementById("topClientsRanking"),
+  topProfitProducts: document.getElementById("topProfitProducts"),
+  idleProductsRanking: document.getElementById("idleProductsRanking"),
   backupStatus: document.getElementById("backupStatus"),
   autoBackupStatus: document.getElementById("autoBackupStatus"),
   exportCsv: document.getElementById("exportCsv"),
@@ -203,10 +209,16 @@ function saveAutomaticBackup() {
   }
 }
 
+function formatBackupDateTime(iso) {
+  if (!iso) return "";
+  const date = new Date(iso);
+  return `${date.toLocaleDateString("pt-BR")} às ${date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+}
+
 function formatAutoBackupTime() {
   const snapshot = automaticBackupSnapshot();
   if (!snapshot?.savedAt) return "Backup automático ainda não foi feito.";
-  return `Backup automático: ${new Date(snapshot.savedAt).toLocaleString("pt-BR")}`;
+  return `Backup automático salvo em: ${formatBackupDateTime(snapshot.savedAt)}.`;
 }
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -239,8 +251,8 @@ function formatDate(date) {
 }
 
 function formatDateTime(iso) {
-  if (!iso) return "Nenhum backup baixado ainda.";
-  return `Último backup: ${new Date(iso).toLocaleString("pt-BR")}`;
+  if (!iso) return "Último backup feito em: nenhum backup baixado ainda.";
+  return `Último backup feito em: ${formatBackupDateTime(iso)}.`;
 }
 
 function uid(prefix) {
@@ -486,6 +498,15 @@ function renderSales() {
   }).join("");
 }
 
+function debtStatusInfo(sale) {
+  if (sale.status !== "pending") {
+    return { badge: "paid", card: "debt-paid", text: `Recebido em ${formatDate(sale.paidDate)}` };
+  }
+  if (sale.dueDate === todayISO()) return { badge: "due-today", card: "debt-due-today", text: "Vence hoje" };
+  if (sale.dueDate && sale.dueDate < todayISO()) return { badge: "late", card: "debt-late", text: "Atrasado" };
+  return { badge: "pending", card: "", text: "A vencer" };
+}
+
 function renderDebts() {
   const pending = state.sales.filter(sale => sale.status === "pending");
   const paidLater = state.sales.filter(sale => sale.status === "paid-later");
@@ -508,13 +529,12 @@ function renderDebts() {
   const orderedDebts = [...debts].sort((a, b) => (a.dueDate || a.date).localeCompare(b.dueDate || b.date));
   els.debtCards.innerHTML = orderedDebts.map(sale => {
     const totals = saleTotals(sale);
-    const isLate = sale.status === "pending" && sale.dueDate && sale.dueDate < todayISO();
-    const statusText = sale.status === "pending" ? (isLate ? "Prazo vencido" : "Dentro do prazo") : `Recebido em ${formatDate(sale.paidDate)}`;
+    const status = debtStatusInfo(sale);
     const action = sale.status === "pending"
-      ? `<button class="primary" type="button" data-mark-paid="${sale.id}">Marcar como pago</button>`
+      ? `<div class="debt-action-buttons"><button class="secondary whatsapp-button" type="button" data-copy-debt="${sale.id}" title="Copiar cobrança para WhatsApp">Copiar WhatsApp</button><button class="primary" type="button" data-mark-paid="${sale.id}">Marcar como pago</button></div>`
       : `<span class="badge paid">Já recebido</span>`;
     return `
-      <article class="debt-card ${isLate ? "debt-late" : ""}">
+      <article class="debt-card ${status.card}">
         <div>
           <span class="debt-label">Cliente</span>
           <h3>${escapeHTML(sale.customer || "Cliente")}</h3>
@@ -522,16 +542,15 @@ function renderDebts() {
         <div class="debt-card-row"><span>Quanto deve</span><strong>${money(totals.revenue)}</strong></div>
         <div class="debt-card-row"><span>Produto</span><strong>${escapeHTML(sale.productSnapshot.name)} (${sale.quantity})</strong></div>
         <div class="debt-card-row"><span>Prazo combinado</span><strong>${formatDate(sale.dueDate)}</strong></div>
-        <div class="debt-footer"><span class="badge ${isLate ? "late" : sale.status === "pending" ? "pending" : "paid"}">${statusText}</span>${action}</div>
+        <div class="debt-footer"><span class="badge ${status.badge}">${status.text}</span>${action}</div>
       </article>`;
   }).join("");
 
   els.debtsTable.innerHTML = orderedDebts.map(sale => {
     const totals = saleTotals(sale);
-    const isLate = sale.status === "pending" && sale.dueDate && sale.dueDate < todayISO();
-    const dueBadge = isLate ? "badge late" : "badge pending";
+    const status = debtStatusInfo(sale);
     const action = sale.status === "pending"
-      ? `<button class="primary" type="button" data-mark-paid="${sale.id}">Recebi</button>`
+      ? `<button class="secondary whatsapp-button" type="button" data-copy-debt="${sale.id}" title="Copiar cobrança para WhatsApp">Copiar WhatsApp</button><button class="primary" type="button" data-mark-paid="${sale.id}">Recebi</button>`
       : `<span class="badge paid">Recebido em ${formatDate(sale.paidDate)}</span>`;
     return `
       <tr>
@@ -539,7 +558,7 @@ function renderDebts() {
         <td>${escapeHTML(sale.productSnapshot.name)} (${sale.quantity})</td>
         <td>${money(totals.revenue)}</td>
         <td>${formatDate(sale.date)}</td>
-        <td><span class="${dueBadge}">${formatDate(sale.dueDate)}</span></td>
+        <td><span class="badge ${status.badge}">${formatDate(sale.dueDate)}</span></td>
         <td class="actions">${action}</td>
       </tr>`;
   }).join("");
@@ -823,6 +842,90 @@ function renderMonthComparison(range) {
     <div class="summary-line"><span>Vendas</span><strong>${comparisonLine("Você vendeu", comparison.revenueDiff, comparison.revenuePercent)}</strong></div>
     <div class="summary-line"><span>Lucro</span><strong>${comparisonLine("O lucro", comparison.profitDiff, comparison.profitPercent)}</strong></div>`;
 }
+function inRangeByDate(item, range) {
+  if (!item?.date) return false;
+  if (range.start && item.date < range.start) return false;
+  if (range.end && item.date > range.end) return false;
+  return true;
+}
+
+function addToMap(map, key, amount, extra = {}) {
+  const name = key || "Sem nome";
+  const current = map.get(name) || { name, total: 0, quantity: 0, count: 0, ...extra };
+  current.total += Number(amount || 0);
+  current.quantity += Number(extra.quantity || 0);
+  current.count += Number(extra.count || 0);
+  map.set(name, current);
+}
+
+function renderBarChart(container, rows, emptyText) {
+  if (!container) return;
+  if (!rows.length) {
+    container.innerHTML = `<p class="empty-state chart-empty">${emptyText}</p>`;
+    return;
+  }
+  const max = Math.max(...rows.map(row => Math.abs(row.value)), 1);
+  container.innerHTML = rows.map(row => {
+    const width = Math.max(4, Math.round((Math.abs(row.value) / max) * 100));
+    return `<div class="chart-row"><span>${escapeHTML(row.label)}</span><div class="chart-track"><i style="width:${width}%"></i></div><strong>${escapeHTML(row.display)}</strong></div>`;
+  }).join("");
+}
+
+function renderRankList(container, rows, emptyText) {
+  if (!container) return;
+  if (!rows.length) {
+    container.innerHTML = `<p class="empty-state chart-empty">${emptyText}</p>`;
+    return;
+  }
+  container.innerHTML = rows.map((row, index) => `
+    <div class="rank-row">
+      <span>${index + 1}</span>
+      <div><strong>${escapeHTML(row.name)}</strong><small>${escapeHTML(row.detail)}</small></div>
+      <b>${escapeHTML(row.value)}</b>
+    </div>`).join("");
+}
+
+function renderReportVisuals(filteredSales, range) {
+  const byDay = new Map();
+  const byMonth = new Map();
+  const productsByQuantity = new Map();
+  const productsByProfit = new Map();
+  const clientsByRevenue = new Map();
+  const soldProductIds = new Set();
+
+  filteredSales.forEach(sale => {
+    const totals = saleTotals(sale);
+    const date = sale.date || "";
+    const month = date.slice(0, 7) || "Sem mês";
+    const productName = sale.productSnapshot?.name || "Produto";
+    const customer = sale.customer || "Cliente";
+    soldProductIds.add(sale.productId);
+    addToMap(byDay, date, totals.revenue);
+    addToMap(byMonth, month, totals.profit);
+    addToMap(productsByQuantity, productName, totals.revenue, { quantity: Number(sale.quantity || 0), count: 1 });
+    addToMap(productsByProfit, productName, totals.profit, { quantity: Number(sale.quantity || 0), count: 1 });
+    addToMap(clientsByRevenue, customer, totals.revenue, { count: 1 });
+  });
+
+  const dayRows = Array.from(byDay.values()).sort((a, b) => a.name.localeCompare(b.name)).slice(-18).map(row => ({ label: formatDate(row.name), value: row.total, display: money(row.total) }));
+  const monthRows = Array.from(byMonth.values()).sort((a, b) => a.name.localeCompare(b.name)).map(row => ({ label: monthName(new Date(`${row.name}-01T00:00:00`)), value: row.total, display: money(row.total) }));
+  renderBarChart(els.salesByDayChart, dayRows, "Nenhuma venda neste período.");
+  renderBarChart(els.profitByMonthChart, monthRows, "Nenhum lucro calculado neste período.");
+
+  const productRows = Array.from(productsByQuantity.values()).sort((a, b) => b.quantity - a.quantity || a.name.localeCompare(b.name)).slice(0, 6).map(row => ({ name: row.name, detail: `${row.count} venda(s)`, value: `${row.quantity} un.` }));
+  const profitRows = Array.from(productsByProfit.values()).sort((a, b) => b.total - a.total || a.name.localeCompare(b.name)).slice(0, 6).map(row => ({ name: row.name, detail: `${row.quantity} un. vendida(s)`, value: money(row.total) }));
+  const clientRows = Array.from(clientsByRevenue.values()).sort((a, b) => b.total - a.total || a.name.localeCompare(b.name)).slice(0, 6).map(row => ({ name: row.name, detail: `${row.count} compra(s)`, value: money(row.total) }));
+  const idleRows = logic.filterSellableProducts(state.products)
+    .filter(product => Number(product.stock || 0) > 0 && !soldProductIds.has(product.id))
+    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "pt-BR"))
+    .slice(0, 6)
+    .map(product => ({ name: product.name, detail: `Estoque atual: ${product.stock}`, value: money(Number(product.price || 0) * Number(product.stock || 0)) }));
+  renderRankList(els.topProductsRanking, productRows, "Nenhum produto vendido neste período.");
+  renderRankList(els.topClientsRanking, clientRows, "Nenhum cliente com compra neste período.");
+  renderRankList(els.topProfitProducts, profitRows, "Nenhum lucro calculado neste período.");
+  renderRankList(els.idleProductsRanking, idleRows, "Nenhum produto parado com estoque neste período.");
+}
+
 function renderReports() {
   const range = getReportRange();
   const isCustom = els.reportFilter.value === "custom";
@@ -831,21 +934,13 @@ function renderReports() {
   els.reportPeriodLabel.textContent = range.label;
   renderMonthComparison(range);
 
-  const filteredSales = state.sales.filter(sale => {
-    if (range.start && sale.date < range.start) return false;
-    if (range.end && sale.date > range.end) return false;
-    return true;
-  });
+  const filteredSales = state.sales.filter(sale => inRangeByDate(sale, range));
   const allRevenue = sum(filteredSales, sale => saleTotals(sale).revenue);
   const allProfit = sum(filteredSales, sale => saleTotals(sale).profit);
   const sellableProducts = logic.filterSellableProducts(state.products);
   const stockSaleValue = sum(sellableProducts, product => product.price * product.stock);
   const stockCost = sum(sellableProducts, product => product.cost * product.stock);
-  const filteredPurchases = state.purchases.filter(purchase => {
-    if (range.start && purchase.date < range.start) return false;
-    if (range.end && purchase.date > range.end) return false;
-    return true;
-  });
+  const filteredPurchases = state.purchases.filter(purchase => inRangeByDate(purchase, range));
   const purchaseTotals = logic.purchaseBreakdown(filteredPurchases, state.products);
   document.getElementById("allRevenue").textContent = money(allRevenue);
   document.getElementById("allProfit").textContent = money(allProfit);
@@ -856,11 +951,12 @@ function renderReports() {
 
   const ranking = {};
   filteredSales.forEach(sale => {
-    const name = sale.productSnapshot.name;
-    ranking[name] = (ranking[name] || 0) + sale.quantity;
+    const name = sale.productSnapshot?.name || "Produto";
+    ranking[name] = (ranking[name] || 0) + Number(sale.quantity || 0);
   });
   const best = Object.entries(ranking).sort((a, b) => b[1] - a[1])[0];
   document.getElementById("bestSeller").textContent = best ? `${best[0]}: ${best[1]} unidade(s) vendida(s).` : "Nenhuma venda neste período.";
+  renderReportVisuals(filteredSales, range);
   els.backupStatus.textContent = formatDateTime(state.lastBackupAt);
   els.autoBackupStatus.textContent = formatAutoBackupTime();
 }
@@ -994,20 +1090,29 @@ function showSaleReceipt(sale) {
   els.saleReceiptPanel.classList.remove("hidden");
 }
 
-async function copySaleReceipt() {
-  if (!lastSaleReceiptText) return showToast("Nenhum recibinho para copiar ainda.");
+async function copyTextToClipboard(text, successMessage) {
   try {
-    await navigator.clipboard.writeText(lastSaleReceiptText);
-    showToast("Resumo copiado para o WhatsApp.");
+    await navigator.clipboard.writeText(text);
   } catch (error) {
     const area = document.createElement("textarea");
-    area.value = lastSaleReceiptText;
+    area.value = text;
     document.body.appendChild(area);
     area.select();
     document.execCommand("copy");
     area.remove();
-    showToast("Resumo copiado para o WhatsApp.");
   }
+  showToast(successMessage);
+}
+
+async function copySaleReceipt() {
+  if (!lastSaleReceiptText) return showToast("Nenhum recibinho para copiar ainda.");
+  await copyTextToClipboard(lastSaleReceiptText, "Resumo copiado para o WhatsApp.");
+}
+
+async function copyDebtReminder(id) {
+  const sale = state.sales.find(item => item.id === id);
+  if (!sale) return showToast("Pendência não encontrada.");
+  await copyTextToClipboard(logic.debtReminderText(sale), "Cobrança copiada para o WhatsApp.");
 }
 function updateSalePreview() {
   setSaleModeUI();
@@ -1793,9 +1898,14 @@ els.productsTable.addEventListener("click", event => {
   if (editId) editProduct(editId);
   if (deleteId) deleteProduct(deleteId);
 });
-els.debtsTable.addEventListener("click", event => {
-  if (event.target.dataset.markPaid) markPaid(event.target.dataset.markPaid);
-});
+function handleDebtClick(event) {
+  const copyButton = event.target.closest("[data-copy-debt]");
+  if (copyButton) return copyDebtReminder(copyButton.dataset.copyDebt);
+  const paidButton = event.target.closest("[data-mark-paid]");
+  if (paidButton) markPaid(paidButton.dataset.markPaid);
+}
+els.debtsTable.addEventListener("click", handleDebtClick);
+els.debtCards.addEventListener("click", handleDebtClick);
 els.cancelEditProduct.addEventListener("click", () => {
   els.productForm.reset();
   els.productMinStock.value = 3;

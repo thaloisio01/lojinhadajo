@@ -1,4 +1,4 @@
-﻿(function (root, factory) {
+(function (root, factory) {
   if (typeof module === "object" && module.exports) {
     module.exports = factory();
   } else {
@@ -427,6 +427,12 @@
     return `${day}/${month}/${year}`;
   }
 
+  function formatDateShortBR(date) {
+    if (!date) return "-";
+    const [, month, day] = String(date).split("-");
+    return `${day}/${month}`;
+  }
+
 
   function batchRemaining(batch) {
     return Number(batch.remaining ?? batch.quantity ?? 0);
@@ -659,6 +665,11 @@
     if (sale.status === "pending") lines.push(`Prazo: ${formatDateBR(sale.dueDate)}`);
     return lines.join("\n");
   }
+  function debtReminderText(sale) {
+    const totals = saleTotals(sale);
+    return `Oi, tudo bem? Passando para lembrar que ficou um valor pendente de ${formatMoneyBR(totals.revenue)} da compra do dia ${formatDateShortBR(sale.date || sale.dueDate)} na Lojinha da Jô.`;
+  }
+
   function applySaleStockChange(products, oldSale, newSale) {
     if (oldSale) {
       const oldProduct = (products || []).find(product => product.id === oldSale.productId);
@@ -683,7 +694,7 @@
       }));
   }
 
-  return { saleTotals, saleDisplayRows, normalizeProductName, sortProductsByName, filterProducts, filterProductsByCategory, filterSellableProducts, isSupplyProduct, purchaseBreakdown, purchaseDaySummary, cartTotals, quickSaleEstimate, stockConferencePlan, hasDuplicateProductName, profitPercent, monthStats, monthComparison, monthHighlights, customerRankings, closingStats, monthlyClosingStats, monthlyBusinessSummary, seasonalThemeInfo, saleReceiptText, addPurchaseToInventory, removePurchaseFromInventory, setProductStockWithAdjustment, ensureInventoryBatches, applySaleStockChange, shoppingList };
+  return { saleTotals, saleDisplayRows, normalizeProductName, sortProductsByName, filterProducts, filterProductsByCategory, filterSellableProducts, isSupplyProduct, purchaseBreakdown, purchaseDaySummary, cartTotals, quickSaleEstimate, stockConferencePlan, hasDuplicateProductName, profitPercent, monthStats, monthComparison, monthHighlights, customerRankings, closingStats, monthlyClosingStats, monthlyBusinessSummary, seasonalThemeInfo, saleReceiptText, debtReminderText, addPurchaseToInventory, removePurchaseFromInventory, setProductStockWithAdjustment, ensureInventoryBatches, applySaleStockChange, shoppingList };
 });
 
 
