@@ -16,12 +16,15 @@ let cloudPushTimer = null;
 let lastCloudJson = "";
 let officialMonthSummaryVisible = false;
 let lastSaleReceiptText = "";
+let lastClosingCopyText = "";
+let activeProductHistoryId = "";
 let saleCart = [];
 
 const logic = window.LojinhaLogic;
 
 const els = {
   loginScreen: document.getElementById("loginScreen"),
+  syncWarning: document.getElementById("syncWarning"),
   appShell: document.getElementById("appShell"),
   loginForm: document.getElementById("loginForm"),
   loginUser: document.getElementById("loginUser"),
@@ -67,6 +70,7 @@ const els = {
   productMinStock: document.getElementById("productMinStock"),
   cancelEditProduct: document.getElementById("cancelEditProduct"),
   productsTable: document.getElementById("productsTable"),
+  productHistoryPanel: document.getElementById("productHistoryPanel"),
   saleForm: document.getElementById("saleForm"),
   editingSaleId: document.getElementById("editingSaleId"),
   saleSubmitBtn: document.getElementById("saleSubmitBtn"),
@@ -135,6 +139,7 @@ const els = {
   closingPending: document.getElementById("closingPending"),
   closingProfit: document.getElementById("closingProfit"),
   closingSummary: document.getElementById("closingSummary"),
+  copyClosingSummary: document.getElementById("copyClosingSummary"),
   generateMonthSummary: document.getElementById("generateMonthSummary"),
   officialMonthSummary: document.getElementById("officialMonthSummary"),
   stockCheckForm: document.getElementById("stockCheckForm"),
@@ -166,6 +171,7 @@ const els = {
   idleProductsRanking: document.getElementById("idleProductsRanking"),
   backupStatus: document.getElementById("backupStatus"),
   autoBackupStatus: document.getElementById("autoBackupStatus"),
+  backupReminder: document.getElementById("backupReminder"),
   exportCsv: document.getElementById("exportCsv"),
   exportExcel: document.getElementById("exportExcel"),
   exportJson: document.getElementById("exportJson"),
@@ -410,6 +416,7 @@ function renderProducts() {
         <td><span class="profit-percent">${formatPercent(logic.profitPercent(product.cost, product.price))}</span></td>
         <td><span class="${stockClass}">${product.stock}</span></td>
         <td class="actions">
+          <button class="secondary" type="button" data-product-history="${product.id}">Histórico</button>
           <button class="secondary" type="button" data-edit-product="${product.id}">Editar</button>
           <button class="secondary danger" type="button" data-delete-product="${product.id}">Excluir</button>
         </td>
@@ -417,6 +424,33 @@ function renderProducts() {
   }).join("");
 }
 
+function renderProductHistory(productId) {
+  if (!els.productHistoryPanel) return;
+  const product = state.products.find(item => item.id === productId);
+  activeProductHistoryId = product ? productId : "";
+  if (!product) {
+    els.productHistoryPanel.classList.add("hidden");
+    els.productHistoryPanel.innerHTML = "";
+    return;
+  }
+  const history = logic.productHistory(product, state.purchases, state.sales);
+  els.productHistoryPanel.classList.remove("hidden");
+  els.productHistoryPanel.innerHTML = `
+    <div class="panel-title-row">
+      <div><p class="eyebrow accent-text">histórico do produto</p><h3>${escapeHTML(product.name)}</h3></div>
+      <button class="secondary" type="button" data-close-product-history="1">Fechar</button>
+    </div>
+    <div class="history-grid">
+      <div class="history-item"><span>Primeira compra</span><strong>${formatDate(history.firstPurchaseDate)}</strong></div>
+      <div class="history-item"><span>Última compra</span><strong>${formatDate(history.lastPurchaseDate)}</strong></div>
+      <div class="history-item"><span>Quanto comprou</span><strong>${history.totalBoughtQuantity} un.</strong></div>
+      <div class="history-item"><span>Quanto pagou</span><strong>${money(history.totalPurchaseCost)}</strong></div>
+      <div class="history-item"><span>Média paga</span><strong>${money(history.averagePaid)}</strong></div>
+      <div class="history-item"><span>Quanto vendeu</span><strong>${history.soldQuantity} un. / ${money(history.soldTotal)}</strong></div>
+      <div class="history-item"><span>Estoque atual</span><strong>${history.stock} un.</strong></div>
+      <div class="history-item history-profit"><span>Lucro gerado</span><strong>${money(history.profitGenerated)}</strong></div>
+    </div>`;
+}
 function renderPurchaseDaySummary() {
   if (!els.purchaseTodayTotal || !els.purchaseSummaryDate) return;
   const today = todayISO();
@@ -571,9 +605,9 @@ function renderClosing() {
   els.closingDateWrap.classList.toggle("hidden", isMonth);
   els.closingMonthWrap.classList.toggle("hidden", !isMonth);
   const period = isMonth ? (els.closingMonth.value || todayISO().slice(0, 7)) : (els.closingDate.value || todayISO());
-  const stats = isMonth ? logic.monthlyClosingStats(state.sales, period) : logic.closingStats(state.sales, period);
+  const stats = logic.closingConference(state.sales, state.purchases, state.products, period, mode);
   const periodLabel = isMonth ? monthName(new Date(`${period}-01T00:00:00`)) : formatDate(period);
-  els.closingDateLabel.textContent = isMonth ? `Fechamento de ${periodLabel}` : `Fechamento de ${periodLabel}`;
+  els.closingDateLabel.textContent = `Fechamento de ${periodLabel}`;
   els.closingSoldLabel.textContent = isMonth ? "Vendido no mês" : "Vendido no dia";
   els.closingReceivedLabel.textContent = isMonth ? "Recebido no mês" : "Recebido no dia";
   els.closingPendingLabel.textContent = isMonth ? "Fiado do mês" : "Fiado do dia";
@@ -581,14 +615,16 @@ function renderClosing() {
   els.closingReceived.textContent = money(stats.receivedTotal);
   els.closingPending.textContent = money(stats.pendingTotal);
   els.closingProfit.textContent = money(stats.estimatedProfit);
+  lastClosingCopyText = logic.closingWhatsAppText(stats, periodLabel);
   els.closingSummary.innerHTML = `
     <div class="summary-line"><span>Vendas registradas</span><strong>${stats.salesCount}</strong></div>
-    <div class="summary-line"><span>Entrou no caixa</span><strong>${money(stats.receivedTotal)}</strong></div>
-    <div class="summary-line"><span>Ficou para receber</span><strong>${money(stats.pendingTotal)}</strong></div>
+    <div class="summary-line"><span>Entrou no dinheiro/pix</span><strong>${money(stats.receivedTotal)}</strong></div>
+    <div class="summary-line"><span>Ficou pendente</span><strong>${money(stats.pendingTotal)}</strong></div>
+    <div class="summary-line"><span>Foi gasto em compras</span><strong>${money(stats.spentTotal)}</strong></div>
+    <div class="summary-line"><span>Saldo estimado</span><strong>${money(stats.estimatedBalance)}</strong></div>
     <div class="summary-line"><span>Lucro estimado das vendas ${isMonth ? "do mês" : "do dia"}</span><strong>${money(stats.estimatedProfit)}</strong></div>`;
   renderOfficialMonthSummary(isMonth, period, periodLabel);
 }
-
 function renderOfficialMonthSummary(isMonth, period, periodLabel) {
   if (!els.officialMonthSummary) return;
   if (!officialMonthSummaryVisible || !isMonth) {
@@ -1113,6 +1149,11 @@ async function copyDebtReminder(id) {
   const sale = state.sales.find(item => item.id === id);
   if (!sale) return showToast("Pendência não encontrada.");
   await copyTextToClipboard(logic.debtReminderText(sale), "Cobrança copiada para o WhatsApp.");
+}
+async function copyClosingSummary() {
+  if (!lastClosingCopyText) renderClosing();
+  if (!lastClosingCopyText) return showToast("Nenhum fechamento para copiar ainda.");
+  await copyTextToClipboard(lastClosingCopyText, "Fechamento copiado para o WhatsApp.");
 }
 function updateSalePreview() {
   setSaleModeUI();
@@ -1691,6 +1732,13 @@ function readableError(error) {
 }
 function setSyncStatus(message) {
   if (els.syncStatus) els.syncStatus.textContent = message;
+  const problem = /erro|falhou|desligado|local|publique|login/i.test(String(message || ""));
+  if (els.syncWarning) {
+    els.syncWarning.classList.toggle("hidden", !problem);
+    els.syncWarning.innerHTML = problem
+      ? `<strong>Atenção:</strong> este aparelho ainda não salvou online. Status: ${escapeHTML(message)}. Confira a internet, aguarde aparecer “Sincronizado” ou faça backup antes de continuar.`
+      : "";
+  }
 }
 
 function hasSupabaseConfig(config) {
@@ -1878,6 +1926,7 @@ els.reportEnd.addEventListener("input", renderReports);
 els.closingMode.addEventListener("change", renderClosing);
 els.closingDate.addEventListener("input", renderClosing);
 els.closingMonth.addEventListener("input", renderClosing);
+els.copyClosingSummary.addEventListener("click", copyClosingSummary);
 els.generateMonthSummary.addEventListener("click", () => {
   officialMonthSummaryVisible = true;
   els.closingMode.value = "month";
@@ -1893,10 +1942,15 @@ els.recentSalesTable.addEventListener("click", event => {
   if (deleteGroupId) deleteSaleGroup(deleteGroupId);
 });
 els.productsTable.addEventListener("click", event => {
+  const historyId = event.target.dataset.productHistory;
   const editId = event.target.dataset.editProduct;
   const deleteId = event.target.dataset.deleteProduct;
+  if (historyId) renderProductHistory(historyId);
   if (editId) editProduct(editId);
   if (deleteId) deleteProduct(deleteId);
+});
+els.productHistoryPanel.addEventListener("click", event => {
+  if (event.target.dataset.closeProductHistory) renderProductHistory("");
 });
 function handleDebtClick(event) {
   const copyButton = event.target.closest("[data-copy-debt]");

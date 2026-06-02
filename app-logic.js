@@ -62,6 +62,29 @@
       count: dayPurchases.length
     };
   }
+  function productHistory(product, purchases, sales) {
+    const productId = product?.id;
+    const productPurchases = (purchases || []).filter(purchase => purchase.productId === productId || purchase.productName === product?.name);
+    const productSales = (sales || []).filter(sale => sale.productId === productId || sale.productSnapshot?.name === product?.name);
+    const purchaseDates = productPurchases.map(purchase => purchase.date).filter(Boolean).sort();
+    const totalBoughtQuantity = sum(productPurchases, purchase => Number(purchase.quantity || 0));
+    const totalPurchaseCost = sum(productPurchases, purchase => Number(purchase.quantity || 0) * Number(purchase.unitCost || 0));
+    const soldQuantity = sum(productSales, sale => Number(sale.quantity || 0));
+    const soldTotal = sum(productSales, sale => saleTotals(sale).revenue);
+    const profitGenerated = sum(productSales, sale => saleTotals(sale).profit);
+    return {
+      firstPurchaseDate: purchaseDates[0] || "",
+      lastPurchaseDate: purchaseDates[purchaseDates.length - 1] || "",
+      purchaseCount: productPurchases.length,
+      totalBoughtQuantity,
+      totalPurchaseCost,
+      averagePaid: totalBoughtQuantity ? totalPurchaseCost / totalBoughtQuantity : 0,
+      soldQuantity,
+      soldTotal,
+      profitGenerated,
+      stock: Number(product?.stock || 0)
+    };
+  }
   function filterProductsByCategory(products, category) {
     const normalizedCategory = normalizeProductName(category);
     if (!normalizedCategory) return (products || []).slice();
@@ -261,6 +284,36 @@
     };
   }
 
+  function purchasesInPeriod(purchases, period, mode) {
+    return (purchases || []).filter(purchase => {
+      if (!purchase.date) return false;
+      return mode === "month" ? purchase.date.slice(0, 7) === period : purchase.date === period;
+    });
+  }
+
+  function closingConference(sales, purchases, products, period, mode) {
+    const stats = mode === "month" ? monthlyClosingStats(sales || [], period) : closingStats(sales || [], period);
+    const purchaseTotals = purchaseBreakdown(purchasesInPeriod(purchases, period, mode), products || []);
+    return {
+      ...stats,
+      spentTotal: purchaseTotals.total,
+      merchandiseSpent: purchaseTotals.merchandiseTotal,
+      suppliesSpent: purchaseTotals.suppliesTotal,
+      estimatedBalance: stats.receivedTotal - purchaseTotals.total
+    };
+  }
+
+  function closingWhatsAppText(conference, periodLabel) {
+    return [
+      `Fechamento da Lojinha da Jô - ${periodLabel}`,
+      `Vendas registradas: ${Number(conference.salesCount || 0)}`,
+      `Entrou no dinheiro/pix: ${formatMoneyBR(conference.receivedTotal)}`,
+      `Ficou pendente: ${formatMoneyBR(conference.pendingTotal)}`,
+      `Foi gasto em compras: ${formatMoneyBR(conference.spentTotal)}`,
+      `Saldo estimado: ${formatMoneyBR(conference.estimatedBalance)}`,
+      `Lucro estimado: ${formatMoneyBR(conference.estimatedProfit)}`
+    ].join("\n");
+  }
   function previousMonth(month) {
     const [yearText, monthText] = String(month).split("-");
     const date = new Date(Number(yearText), Number(monthText) - 2, 1);
@@ -694,7 +747,26 @@
       }));
   }
 
-  return { saleTotals, saleDisplayRows, normalizeProductName, sortProductsByName, filterProducts, filterProductsByCategory, filterSellableProducts, isSupplyProduct, purchaseBreakdown, purchaseDaySummary, cartTotals, quickSaleEstimate, stockConferencePlan, hasDuplicateProductName, profitPercent, monthStats, monthComparison, monthHighlights, customerRankings, closingStats, monthlyClosingStats, monthlyBusinessSummary, seasonalThemeInfo, saleReceiptText, debtReminderText, addPurchaseToInventory, removePurchaseFromInventory, setProductStockWithAdjustment, ensureInventoryBatches, applySaleStockChange, shoppingList };
+  function backupReminder(lastBackupAt, nowIso, thresholdDays = 7) {
+    if (!lastBackupAt) {
+      return {
+        shouldWarn: true,
+        daysSinceBackup: null,
+        message: "Nenhum backup baixado ainda. Faça um backup agora para guardar os dados."
+      };
+    }
+    const last = new Date(lastBackupAt).getTime();
+    const now = new Date(nowIso || new Date().toISOString()).getTime();
+    if (!Number.isFinite(last) || !Number.isFinite(now)) return { shouldWarn: false, daysSinceBackup: 0, message: "" };
+    const daysSinceBackup = Math.floor((now - last) / (1000 * 60 * 60 * 24));
+    const shouldWarn = daysSinceBackup >= thresholdDays;
+    return {
+      shouldWarn,
+      daysSinceBackup,
+      message: shouldWarn ? `Faz ${daysSinceBackup} dias que o backup não é baixado. Faça um backup agora para guardar os dados.` : ""
+    };
+  }
+  return { saleTotals, saleDisplayRows, productHistory, normalizeProductName, sortProductsByName, filterProducts, filterProductsByCategory, filterSellableProducts, isSupplyProduct, purchaseBreakdown, purchaseDaySummary, cartTotals, quickSaleEstimate, stockConferencePlan, hasDuplicateProductName, profitPercent, monthStats, monthComparison, monthHighlights, customerRankings, closingStats, closingConference, closingWhatsAppText, backupReminder, monthlyClosingStats, monthlyBusinessSummary, seasonalThemeInfo, saleReceiptText, debtReminderText, addPurchaseToInventory, removePurchaseFromInventory, setProductStockWithAdjustment, ensureInventoryBatches, applySaleStockChange, shoppingList };
 });
 
 

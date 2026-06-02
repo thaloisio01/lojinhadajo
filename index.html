@@ -41,8 +41,9 @@
         <button id="logoutBtn" class="icon-button" type="button" title="Sair do aplicativo">Sair</button>
       </div>
     </header>
+    <div id="syncWarning" class="app-warning hidden"><strong>Atenção:</strong> este aparelho ainda não salvou online. Confira a internet, aguarde aparecer “Sincronizado” ou faça backup antes de continuar.</div>
 
-        <nav class="tabs" aria-label="Navegação principal">
+    <nav class="tabs" aria-label="Navegação principal">
       <button class="tab active" data-screen="dashboard" type="button"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10.5V20h14v-9.5"/><path d="M9 20v-6h6v6"/></svg></span>Resumo</button>
       <button class="tab" data-screen="sale" type="button"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h2l2.2 10.5a2 2 0 0 0 2 1.5h7.4a2 2 0 0 0 2-1.6L21 8H7"/><circle cx="10" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/></svg></span>Vender</button>
       <button class="tab" data-screen="products" type="button"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 8.5 12 4 3 8.5l9 4.5 9-4.5Z"/><path d="M3 8.5v7L12 20l9-4.5v-7"/><path d="M12 13v7"/></svg></span>Produtos</button>
@@ -198,6 +199,7 @@
           <div class="form-actions"><button class="primary" type="submit">Salvar produto</button><button id="cancelEditProduct" class="secondary hidden" type="button">Cancelar edição</button></div>
         </form>
         <section class="panel"><h3>Lista de produtos</h3><div class="table-wrap"><table><thead><tr><th>Produto</th><th>Categoria</th><th>Custo médio</th><th>Venda</th><th>Lucro un.</th><th>Lucro %</th><th>Estoque</th><th></th></tr></thead><tbody id="productsTable"></tbody></table></div></section>
+        <section id="productHistoryPanel" class="panel product-history-panel hidden"></section>
       </section>
 
       <section id="purchases" class="screen" aria-labelledby="purchasesTitle">
@@ -236,7 +238,7 @@
           <article class="metric"><i class="metric-icon">P</i><span id="closingPendingLabel">Fiado do dia</span><strong id="closingPending">R$ 0,00</strong></article>
           <article class="metric"><i class="metric-icon">%</i><span>Lucro estimado</span><strong id="closingProfit">R$ 0,00</strong></article>
         </div>
-        <section class="panel accent-panel"><h3>Resumo rápido</h3><div id="closingSummary" class="closing-summary"></div></section>
+        <section class="panel accent-panel"><div class="panel-title-row"><h3>Resumo rápido</h3><button id="copyClosingSummary" class="secondary whatsapp-button" type="button">Copiar fechamento para WhatsApp</button></div><div id="closingSummary" class="closing-summary"></div></section>
         <section id="officialMonthSummary" class="panel official-summary hidden"></section>
       </section>
 
@@ -315,7 +317,7 @@
             <article class="report-box"><h4>Produtos parados no estoque</h4><div id="idleProductsRanking" class="rank-list"></div></article>
           </div>
         </section>
-        <section class="panel backup-panel featured-backup"><h3>Guardar os dados</h3><p id="backupStatus" class="backup-status">Último backup feito em: nenhum backup baixado ainda.</p><p id="autoBackupStatus" class="backup-status">Backup automático ainda não foi feito.</p><div class="backup-actions"><button id="exportJson" class="primary backup-now" type="button">Fazer backup agora</button><button id="exportCsv" class="secondary" type="button">Baixar planilha CSV</button><button id="exportExcel" class="secondary" type="button">Baixar Excel completo</button><label class="file-button">Importar backup<input id="importJson" type="file" accept="application/json"></label></div></section>
+        <section class="panel backup-panel featured-backup"><h3>Guardar os dados</h3><p id="backupStatus" class="backup-status">Último backup feito em: nenhum backup baixado ainda.</p><p id="autoBackupStatus" class="backup-status">Backup automático ainda não foi feito.</p><p id="backupReminder" class="backup-reminder hidden"></p><div class="backup-actions"><button id="exportJson" class="primary backup-now" type="button">Fazer backup agora</button><button id="exportCsv" class="secondary" type="button">Baixar planilha CSV</button><button id="exportExcel" class="secondary" type="button">Baixar Excel completo</button><label class="file-button">Importar backup<input id="importJson" type="file" accept="application/json"></label></div></section>
       </section>
     </main>
   </div>
