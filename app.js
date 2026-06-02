@@ -297,11 +297,11 @@ function applySeasonalTheme() {
   document.body.dataset.season = info.season;
   if (!els.loginSeasonDecor || !els.loginSeasonMessage) return;
   const hasTheme = info.season !== "normal";
-  const showJuneDecor = info.season === "june";
-  els.loginSeasonDecor.classList.toggle("hidden", !showJuneDecor);
+  const isJune = info.season === "june";
+  els.loginSeasonDecor.classList.add("hidden");
   els.loginSeasonDecor.textContent = "";
-  els.loginSeasonMessage.classList.toggle("hidden", !hasTheme || showJuneDecor);
-  els.loginSeasonMessage.textContent = showJuneDecor ? "" : info.message;
+  els.loginSeasonMessage.classList.toggle("hidden", !hasTheme || isJune);
+  els.loginSeasonMessage.textContent = isJune ? "" : info.message;
 }
 
 function renderRankingCard(rank, nameEl, detailEl, emptyName, detailBuilder) {
@@ -1728,6 +1728,7 @@ if (sessionStorage.getItem(SESSION_KEY) === "sim") {
 } else {
   showLogin();
 }
+
 
 
 

@@ -565,8 +565,8 @@ body[data-season="christmas"] .login-screen::before {
   min-height: 34px;
 }
 
-body[data-season="june"] .season-decor::before,
-body[data-season="june"] .season-decor::after {
+body[data-season="june"] .season-decor:not(.hidden)::before,
+body[data-season="june"] .season-decor:not(.hidden)::after {
   content: "";
   position: absolute;
   left: 4px;
@@ -577,11 +577,11 @@ body[data-season="june"] .season-decor::after {
   filter: drop-shadow(0 4px 5px rgba(95, 20, 20, .16));
 }
 
-body[data-season="june"] .season-decor::before {
+body[data-season="june"] .season-decor:not(.hidden)::before {
   top: 0;
 }
 
-body[data-season="june"] .season-decor::after {
+body[data-season="june"] .season-decor:not(.hidden)::after {
   top: 14px;
   transform: scaleX(.92);
   opacity: .9;
@@ -633,6 +633,7 @@ body[data-season="birthday-day"] .season-message {
   color: var(--sage);
   font-weight: 900;
 }
+
 
 
 
