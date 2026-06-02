@@ -314,6 +314,22 @@
       `Lucro estimado: ${formatMoneyBR(conference.estimatedProfit)}`
     ].join("\n");
   }
+  function profitGoalProgress(sales, referenceDate, goal = 500) {
+    const [yearText, monthText, dayText] = String(referenceDate).split("-");
+    const year = Number(yearText);
+    const month = Number(monthText);
+    const day = Number(dayText || 1);
+    const lastDay = new Date(year, month, 0).getDate();
+    const startDay = day <= 15 ? 1 : 16;
+    const endDay = day <= 15 ? 15 : lastDay;
+    const start = `${yearText}-${monthText}-${String(startDay).padStart(2, "0")}`;
+    const end = `${yearText}-${monthText}-${String(endDay).padStart(2, "0")}`;
+    const profit = sum((sales || []).filter(sale => sale.date >= start && sale.date <= end), sale => saleTotals(sale).profit);
+    const remaining = Math.max(goal - profit, 0);
+    const percent = goal > 0 ? Math.min((profit / goal) * 100, 100) : 100;
+    const stage = percent >= 100 ? "super" : percent >= 75 ? "happy" : percent >= 50 ? "hopeful" : percent >= 25 ? "calm" : "sad";
+    return { start, end, goal, profit, remaining, percent, stage };
+  }
   function previousMonth(month) {
     const [yearText, monthText] = String(month).split("-");
     const date = new Date(Number(yearText), Number(monthText) - 2, 1);
@@ -766,7 +782,7 @@
       message: shouldWarn ? `Faz ${daysSinceBackup} dias que o backup não é baixado. Faça um backup agora para guardar os dados.` : ""
     };
   }
-  return { saleTotals, saleDisplayRows, productHistory, normalizeProductName, sortProductsByName, filterProducts, filterProductsByCategory, filterSellableProducts, isSupplyProduct, purchaseBreakdown, purchaseDaySummary, cartTotals, quickSaleEstimate, stockConferencePlan, hasDuplicateProductName, profitPercent, monthStats, monthComparison, monthHighlights, customerRankings, closingStats, closingConference, closingWhatsAppText, backupReminder, monthlyClosingStats, monthlyBusinessSummary, seasonalThemeInfo, saleReceiptText, debtReminderText, addPurchaseToInventory, removePurchaseFromInventory, setProductStockWithAdjustment, ensureInventoryBatches, applySaleStockChange, shoppingList };
+  return { saleTotals, saleDisplayRows, productHistory, normalizeProductName, sortProductsByName, filterProducts, filterProductsByCategory, filterSellableProducts, isSupplyProduct, purchaseBreakdown, purchaseDaySummary, cartTotals, quickSaleEstimate, stockConferencePlan, hasDuplicateProductName, profitPercent, profitGoalProgress, monthStats, monthComparison, monthHighlights, customerRankings, closingStats, closingConference, closingWhatsAppText, backupReminder, monthlyClosingStats, monthlyBusinessSummary, seasonalThemeInfo, saleReceiptText, debtReminderText, addPurchaseToInventory, removePurchaseFromInventory, setProductStockWithAdjustment, ensureInventoryBatches, applySaleStockChange, shoppingList };
 });
 
 

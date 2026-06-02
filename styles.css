@@ -453,6 +453,15 @@ td.actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .badge.late { background: #f4d8d5; color: var(--danger); }
 
 .report-panel p { margin-bottom: 0; color: var(--muted); font-weight: 700; }
+.profit-goal-panel { border-top: 5px solid var(--gold); background: linear-gradient(135deg, #fffdfa 0%, #fff6ef 100%); }
+.profit-goal-layout { display: grid; grid-template-columns: 190px 1fr; align-items: center; gap: 18px; }
+.goal-cat { display: grid; place-items: center; min-height: 170px; }
+.cat-svg { width: min(180px, 100%); height: auto; filter: drop-shadow(0 10px 18px rgba(75, 35, 28, 0.14)); }
+.goal-content h3 { color: var(--brand-dark); margin-bottom: 8px; }
+.goal-text { color: var(--muted); font-weight: 800; line-height: 1.55; margin-bottom: 12px; }
+.goal-text strong { color: var(--ink); }
+.goal-progress { height: 16px; border-radius: 999px; background: #f2e5df; overflow: hidden; border: 1px solid var(--line); }
+.goal-progress i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #8e1e21, #d8a526, #2f8f4e); transition: width 0.35s ease; }
 .report-chart-grid, .report-ranking-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .report-box { border: 1px solid var(--line); border-radius: 8px; padding: 14px; background: #fffdfa; }
 .report-box h4 { margin-bottom: 12px; color: var(--brand-dark); }
@@ -505,6 +514,7 @@ td.actions { display: flex; gap: 8px; flex-wrap: wrap; }
   .brand-mark { width: 48px; height: 48px; }
   main { padding-top: 16px; }
   .panel, .metric { padding: 14px; }
+  .profit-goal-layout { grid-template-columns: 1fr; text-align: center; }
   .welcome-panel, .cart-footer { align-items: flex-start; flex-direction: column; }
   .tab { min-width: 104px; }
   table { min-width: 620px; }
