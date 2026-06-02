@@ -74,9 +74,11 @@
     const gross = Number(price || 0) * quantity;
     const discount = Math.min(Math.max(Number(sale.discount || 0), 0), gross);
     const revenue = gross - discount;
+    const recordedCost = Number(sale.totalCost);
+    const totalCost = Number.isFinite(recordedCost) ? recordedCost : Number(cost || 0) * quantity;
     return {
       revenue,
-      profit: revenue - (Number(cost || 0) * quantity)
+      profit: revenue - totalCost
     };
   }
 
@@ -416,6 +418,214 @@
     return `${day}/${month}/${year}`;
   }
 
+
+  function batchRemaining(batch) {
+    return Number(batch.remaining ?? batch.quantity ?? 0);
+  }
+
+  function batchSortKey(batch) {
+    return `${batch.date || "0000-00-00"}|${batch.createdAt || ""}|${batch.id || ""}`;
+  }
+
+  function normalizeBatch(batch, fallbackCost) {
+    const quantity = Number(batch.quantity ?? batch.remaining ?? 0);
+    const remaining = Math.max(0, Number(batch.remaining ?? quantity ?? 0));
+    const unitCost = Number(batch.unitCost ?? fallbackCost ?? 0);
+    return {
+      ...batch,
+      quantity,
+      remaining,
+      unitCost,
+      totalCost: roundMoney(remaining * unitCost)
+    };
+  }
+
+  function ensureInventoryBatches(product) {
+    if (!product) return [];
+    const stock = Math.max(0, Number(product.stock || 0));
+    const fallbackCost = Number(product.cost || 0);
+    product.batches = Array.isArray(product.batches)
+      ? product.batches.map(batch => normalizeBatch(batch, fallbackCost)).filter(batch => batch.quantity > 0 || batch.remaining > 0)
+      : [];
+    const remaining = sum(product.batches, batch => batchRemaining(batch));
+    if (stock > 0 && remaining <= 0) {
+      product.batches.push({
+        id: `initial-${product.id || normalizeProductName(product.name) || "product"}`,
+        source: "initial",
+        date: product.createdAtDate || product.createdAt || "",
+        quantity: stock,
+        remaining: stock,
+        unitCost: fallbackCost,
+        totalCost: roundMoney(stock * fallbackCost)
+      });
+    }
+    product.batches.sort((a, b) => batchSortKey(a).localeCompare(batchSortKey(b)));
+    recalculateProductCost(product);
+    return product.batches;
+  }
+
+  function recalculateProductCost(product) {
+    if (!product || !Array.isArray(product.batches)) return Number(product?.cost || 0);
+    const remaining = sum(product.batches, batch => batchRemaining(batch));
+    if (remaining <= 0) return Number(product.cost || 0);
+    const totalCost = sum(product.batches, batch => batchRemaining(batch) * Number(batch.unitCost || 0));
+    product.cost = roundMoney(totalCost / remaining);
+    return product.cost;
+  }
+
+  function addPurchaseToInventory(product, purchase) {
+    if (!product || !purchase) return null;
+    ensureInventoryBatches(product);
+    const quantity = Math.max(0, Number(purchase.quantity || 0));
+    const unitCost = Math.max(0, Number(purchase.unitCost || 0));
+    const batchId = purchase.batchId || purchase.id || `purchase-${Date.now()}`;
+    purchase.batchId = batchId;
+    product.batches.push({
+      id: batchId,
+      purchaseId: purchase.id || "",
+      source: "purchase",
+      date: purchase.date || "",
+      quantity,
+      remaining: quantity,
+      unitCost,
+      totalCost: roundMoney(quantity * unitCost),
+      note: purchase.note || ""
+    });
+    product.stock = Math.max(0, Number(product.stock || 0)) + quantity;
+    ensureInventoryBatches(product);
+    return product.batches[product.batches.length - 1] || null;
+  }
+
+
+  function removePurchaseFromInventory(product, purchase) {
+    if (!product || !purchase) return { ok: false, reason: "Produto ou compra não encontrado." };
+    ensureInventoryBatches(product);
+    const quantity = Math.max(0, Number(purchase.quantity || 0));
+    const batchId = purchase.batchId || purchase.id || "";
+    if (batchId) {
+      const index = product.batches.findIndex(batch => batch.id === batchId || batch.purchaseId === purchase.id);
+      if (index >= 0) {
+        const batch = product.batches[index];
+        const remaining = batchRemaining(batch);
+        if (remaining < quantity) return { ok: false, reason: "Parte dessa compra já foi vendida. Não dá para excluir sem bagunçar o estoque." };
+        batch.remaining = roundMoney(remaining - quantity);
+        batch.quantity = Math.max(0, Number(batch.quantity || 0) - quantity);
+        batch.totalCost = roundMoney(batch.remaining * Number(batch.unitCost || 0));
+        product.stock = Math.max(0, Number(product.stock || 0) - quantity);
+        if (batch.remaining <= 0 && batch.quantity <= 0) product.batches.splice(index, 1);
+        ensureInventoryBatches(product);
+        return { ok: true };
+      }
+    }
+    if (Number(product.stock || 0) < quantity) return { ok: false, reason: "O estoque atual é menor que essa compra. Provavelmente parte dela já foi vendida." };
+    setProductStockWithAdjustment(product, Number(product.stock || 0) - quantity, purchase.unitCost, purchase.date);
+    return { ok: true };
+  }
+  function setProductStockWithAdjustment(product, desiredStock, unitCost, date) {
+    if (!product) return;
+    ensureInventoryBatches(product);
+    const desired = Math.max(0, Number(desiredStock || 0));
+    const current = Math.max(0, Number(product.stock || 0));
+    const difference = desired - current;
+    if (difference > 0) {
+      product.batches.push({
+        id: `adjustment-${product.id || normalizeProductName(product.name) || "product"}-${Date.now()}`,
+        source: "manual-adjustment",
+        date: date || "",
+        quantity: difference,
+        remaining: difference,
+        unitCost: Math.max(0, Number(unitCost ?? product.cost ?? 0)),
+        totalCost: roundMoney(difference * Math.max(0, Number(unitCost ?? product.cost ?? 0)))
+      });
+      product.stock = desired;
+    } else if (difference < 0) {
+      let toRemove = Math.abs(difference);
+      product.batches.sort((a, b) => batchSortKey(a).localeCompare(batchSortKey(b)));
+      product.batches.forEach(batch => {
+        if (toRemove <= 0) return;
+        const take = Math.min(batchRemaining(batch), toRemove);
+        batch.remaining = roundMoney(batchRemaining(batch) - take);
+        batch.totalCost = roundMoney(batch.remaining * Number(batch.unitCost || 0));
+        toRemove -= take;
+      });
+      product.stock = desired;
+    }
+    ensureInventoryBatches(product);
+  }
+
+  function consumeProductInventory(product, sale) {
+    if (!product || !sale || !sale.productId) return;
+    ensureInventoryBatches(product);
+    let remaining = Math.max(0, Number(sale.quantity || 0));
+    const layers = [];
+    product.batches.sort((a, b) => batchSortKey(a).localeCompare(batchSortKey(b)));
+    product.batches.forEach(batch => {
+      if (remaining <= 0) return;
+      const available = batchRemaining(batch);
+      if (available <= 0) return;
+      const quantity = Math.min(available, remaining);
+      const unitCost = Number(batch.unitCost || 0);
+      batch.remaining = roundMoney(available - quantity);
+      batch.totalCost = roundMoney(batch.remaining * unitCost);
+      layers.push({ batchId: batch.id || "", quantity, unitCost, totalCost: roundMoney(quantity * unitCost) });
+      remaining -= quantity;
+    });
+    if (remaining > 0) {
+      const unitCost = Number(product.cost || sale.unitCost || sale.productSnapshot?.cost || 0);
+      layers.push({ batchId: "fallback", quantity: remaining, unitCost, totalCost: roundMoney(remaining * unitCost) });
+    }
+    const quantity = Math.max(0, Number(sale.quantity || 0));
+    const totalCost = roundMoney(sum(layers, layer => Number(layer.totalCost || 0)));
+    sale.costLayers = layers;
+    sale.totalCost = totalCost;
+    sale.unitCost = quantity > 0 ? totalCost / quantity : 0;
+    if (sale.productSnapshot) sale.productSnapshot.cost = sale.unitCost;
+    product.stock = Math.max(0, Number(product.stock || 0) - quantity);
+    ensureInventoryBatches(product);
+  }
+
+  function restoreProductInventory(product, sale) {
+    if (!product || !sale || !sale.productId) return;
+    ensureInventoryBatches(product);
+    const quantity = Math.max(0, Number(sale.quantity || 0));
+    product.stock = Math.max(0, Number(product.stock || 0)) + quantity;
+    const layers = Array.isArray(sale.costLayers) && sale.costLayers.length ? sale.costLayers : null;
+    if (layers) {
+      layers.forEach(layer => {
+        const layerQuantity = Math.max(0, Number(layer.quantity || 0));
+        if (layerQuantity <= 0) return;
+        const batch = product.batches.find(item => item.id === layer.batchId);
+        if (batch) {
+          batch.remaining = roundMoney(batchRemaining(batch) + layerQuantity);
+          batch.quantity = Math.max(Number(batch.quantity || 0), batch.remaining);
+          batch.totalCost = roundMoney(batch.remaining * Number(batch.unitCost || layer.unitCost || 0));
+        } else {
+          const unitCost = Number(layer.unitCost ?? sale.unitCost ?? sale.productSnapshot?.cost ?? 0);
+          product.batches.push({
+            id: `restored-${sale.id || Date.now()}-${product.batches.length}`,
+            source: "sale-restore",
+            date: sale.date || "",
+            quantity: layerQuantity,
+            remaining: layerQuantity,
+            unitCost,
+            totalCost: roundMoney(layerQuantity * unitCost)
+          });
+        }
+      });
+    } else {
+      const unitCost = Number(sale.unitCost ?? sale.productSnapshot?.cost ?? product.cost ?? 0);
+      product.batches.push({
+        id: `restored-${sale.id || Date.now()}`,
+        source: "sale-restore",
+        date: sale.date || "",
+        quantity,
+        remaining: quantity,
+        unitCost,
+        totalCost: roundMoney(quantity * unitCost)
+      });
+    }
+    ensureInventoryBatches(product);
+  }
   function salePaymentText(sale) {
     if (sale.status === "pending") {
       if (sale.paymentType === "voucher-payday") return "Vale pagamento";
@@ -442,12 +652,12 @@
   }
   function applySaleStockChange(products, oldSale, newSale) {
     if (oldSale) {
-      const oldProduct = products.find(product => product.id === oldSale.productId);
-      if (oldProduct) oldProduct.stock = Number(oldProduct.stock || 0) + Number(oldSale.quantity || 0);
+      const oldProduct = (products || []).find(product => product.id === oldSale.productId);
+      if (oldProduct) restoreProductInventory(oldProduct, oldSale);
     }
     if (newSale) {
-      const newProduct = products.find(product => product.id === newSale.productId);
-      if (newProduct) newProduct.stock = Number(newProduct.stock || 0) - Number(newSale.quantity || 0);
+      const newProduct = (products || []).find(product => product.id === newSale.productId);
+      if (newProduct) consumeProductInventory(newProduct, newSale);
     }
   }
   function shoppingList(products) {
@@ -464,8 +674,10 @@
       }));
   }
 
-  return { saleTotals, saleDisplayRows, normalizeProductName, sortProductsByName, filterProducts, filterProductsByCategory, filterSellableProducts, isSupplyProduct, purchaseBreakdown, cartTotals, quickSaleEstimate, stockConferencePlan, hasDuplicateProductName, profitPercent, monthStats, monthComparison, monthHighlights, customerRankings, closingStats, monthlyClosingStats, monthlyBusinessSummary, seasonalThemeInfo, saleReceiptText, applySaleStockChange, shoppingList };
+  return { saleTotals, saleDisplayRows, normalizeProductName, sortProductsByName, filterProducts, filterProductsByCategory, filterSellableProducts, isSupplyProduct, purchaseBreakdown, cartTotals, quickSaleEstimate, stockConferencePlan, hasDuplicateProductName, profitPercent, monthStats, monthComparison, monthHighlights, customerRankings, closingStats, monthlyClosingStats, monthlyBusinessSummary, seasonalThemeInfo, saleReceiptText, addPurchaseToInventory, removePurchaseFromInventory, setProductStockWithAdjustment, ensureInventoryBatches, applySaleStockChange, shoppingList };
 });
+
+
 
 
 

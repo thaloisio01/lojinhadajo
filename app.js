@@ -104,6 +104,9 @@ const els = {
   clearCartBtn: document.getElementById("clearCartBtn"),
   recentSalesTable: document.getElementById("recentSalesTable"),
   purchaseForm: document.getElementById("purchaseForm"),
+  editingPurchaseId: document.getElementById("editingPurchaseId"),
+  purchaseSubmitBtn: document.getElementById("purchaseSubmitBtn"),
+  cancelEditPurchase: document.getElementById("cancelEditPurchase"),
   purchaseProduct: document.getElementById("purchaseProduct"),
   purchaseQuantity: document.getElementById("purchaseQuantity"),
   purchaseUnitCost: document.getElementById("purchaseUnitCost"),
@@ -388,7 +391,7 @@ function renderProducts() {
 function renderPurchases() {
   const recent = [...state.purchases].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10);
   if (!recent.length) {
-    els.purchasesTable.innerHTML = '<tr><td colspan="7">Nenhuma compra registrada ainda.</td></tr>';
+    els.purchasesTable.innerHTML = '<tr><td colspan="8">Nenhuma compra registrada ainda.</td></tr>';
     return;
   }
   els.purchasesTable.innerHTML = recent.map(purchase => `
@@ -400,6 +403,7 @@ function renderPurchases() {
       <td>${money(purchase.unitCost)}</td>
       <td>${money(purchase.quantity * purchase.unitCost)}</td>
       <td>${escapeHTML(purchase.note || "-")}</td>
+      <td class="actions"><button class="secondary" type="button" data-edit-purchase="${purchase.id}">Editar</button><button class="secondary danger" type="button" data-delete-purchase="${purchase.id}">Excluir</button></td>
     </tr>`).join("");
 }
 
@@ -924,7 +928,8 @@ function buildSalesFromCart() {
       status: isPendingPaymentType(els.paymentStatus.value) ? "pending" : "paid",
       paymentType: els.paymentStatus.value,
       dueDate: isPendingPaymentType(els.paymentStatus.value) ? els.dueDate.value : "",
-      paidDate: els.paymentStatus.value === "paid-now" ? els.saleDate.value : ""
+      paidDate: els.paymentStatus.value === "paid-now" ? els.saleDate.value : "",
+      updatedAt: new Date().toISOString()
     };
   });
 }
@@ -1022,18 +1027,34 @@ async function handleLogin(event) {
 function handleProductSubmit(event) {
   event.preventDefault();
   const id = els.editingProductId.value || uid("product");
+  const index = state.products.findIndex(item => item.id === id);
+  const existing = index >= 0 ? state.products[index] : null;
+  const desiredStock = Number(els.productStock.value);
+  const formCost = Number(els.productCost.value);
   const product = {
+    ...(existing || {}),
     id,
     name: els.productName.value.trim(),
-        category: els.productCategory.value.trim(),
-    cost: Number(els.productCost.value),
+    category: els.productCategory.value.trim(),
+    cost: Number(existing?.cost ?? formCost),
     price: Number(els.productPrice.value),
-    stock: Number(els.productStock.value),
-    minStock: Number(els.productMinStock.value)
+    stock: Number(existing?.stock || 0),
+    minStock: Number(els.productMinStock.value),
+    batches: Array.isArray(existing?.batches) ? existing.batches : [],
+    createdAt: existing?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   };
   if (logic.hasDuplicateProductName(state.products, product.name, id)) return showToast("Esse produto já existe. Edite o produto cadastrado em vez de criar outro.");
-  if (product.price < product.cost) showToast("Atenção: o preço de venda está menor que o valor pago.");
-  const index = state.products.findIndex(item => item.id === id);
+  logic.ensureInventoryBatches(product);
+  if (Array.isArray(product.batches) && product.batches.length && product.batches.every(batch => batch.source !== "purchase" && Number(batch.remaining || 0) === Number(batch.quantity || 0))) {
+    product.batches.forEach(batch => {
+      batch.unitCost = formCost;
+      batch.totalCost = Number(batch.remaining || 0) * formCost;
+    });
+    product.cost = formCost;
+  }
+  logic.setProductStockWithAdjustment(product, desiredStock, formCost, todayISO());
+  if (product.price < product.cost) showToast("Atenção: o preço de venda está menor que o custo médio atual.");
   if (index >= 0) state.products[index] = product;
   else state.products.push(product);
   els.productForm.reset();
@@ -1043,7 +1064,6 @@ function handleProductSubmit(event) {
   render();
   showToast("Produto salvo.");
 }
-
 
 function isQuickSaleMode() {
   return els.saleMode && els.saleMode.value === "amount";
@@ -1081,6 +1101,7 @@ function buildQuickSaleFromForm(id) {
     paymentType: els.paymentStatus.value,
     dueDate: isPendingPaymentType(els.paymentStatus.value) ? els.dueDate.value : "",
     paidDate: els.paymentStatus.value === "paid-now" ? els.saleDate.value : "",
+    updatedAt: new Date().toISOString(),
     quickSale: true,
     estimatedProfitRate: estimate.profitRate,
     note
@@ -1118,7 +1139,8 @@ function buildSaleFromForm(id, product, quantity) {
     status: isPendingPaymentType(els.paymentStatus.value) ? "pending" : "paid",
     paymentType: els.paymentStatus.value,
     dueDate: isPendingPaymentType(els.paymentStatus.value) ? els.dueDate.value : "",
-    paidDate: els.paymentStatus.value === "paid-now" ? els.saleDate.value : ""
+    paidDate: els.paymentStatus.value === "paid-now" ? els.saleDate.value : "",
+    updatedAt: new Date().toISOString()
   };
 }
 
@@ -1163,16 +1185,39 @@ function handleSaleSubmit(event) {
   showToast(oldSale ? "Venda atualizada." : "Venda registrada.");
 }
 
+function resetPurchaseForm() {
+  els.purchaseForm.reset();
+  els.editingPurchaseId.value = "";
+  els.purchaseQuantity.value = 1;
+  els.purchaseDate.value = todayISO();
+  els.purchaseSubmitBtn.textContent = "Salvar compra";
+  els.cancelEditPurchase.classList.add("hidden");
+  updatePurchasePreview();
+}
+
 function handlePurchaseSubmit(event) {
   event.preventDefault();
   const product = getProduct(els.purchaseProduct.value);
   const quantity = Number(els.purchaseQuantity.value);
   const unitCost = Number(els.purchaseUnitCost.value);
+  const editingId = els.editingPurchaseId.value;
+  const oldPurchase = editingId ? state.purchases.find(purchase => purchase.id === editingId) : null;
   if (!product) return showToast("Cadastre o produto antes de registrar a compra.");
-  product.stock += quantity;
-  product.cost = unitCost;
-  state.purchases.push({
-    id: uid("purchase"),
+
+  if (oldPurchase) {
+    const oldProduct = getProduct(oldPurchase.productId);
+    if (!oldProduct) return showToast("Produto antigo da compra não encontrado.");
+    const oldProductSnapshot = JSON.stringify(oldProduct);
+    const result = logic.removePurchaseFromInventory(oldProduct, oldPurchase);
+    if (!result.ok) {
+      Object.assign(oldProduct, JSON.parse(oldProductSnapshot));
+      return showToast(result.reason || "Não consegui editar esta compra.");
+    }
+  }
+
+  const purchase = {
+    ...(oldPurchase || {}),
+    id: editingId || uid("purchase"),
     productId: product.id,
     productName: product.name,
     category: product.category || "Mercadoria",
@@ -1180,15 +1225,55 @@ function handlePurchaseSubmit(event) {
     quantity,
     unitCost,
     date: els.purchaseDate.value,
-    note: els.purchaseNote.value.trim()
-  });
-  els.purchaseForm.reset();
-  els.purchaseQuantity.value = 1;
-  els.purchaseDate.value = todayISO();
+    note: els.purchaseNote.value.trim(),
+    createdAt: oldPurchase?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  logic.addPurchaseToInventory(product, purchase);
+  product.updatedAt = new Date().toISOString();
+  if (oldPurchase) {
+    const index = state.purchases.findIndex(item => item.id === oldPurchase.id);
+    state.purchases[index] = purchase;
+  } else {
+    state.purchases.push(purchase);
+  }
+  resetPurchaseForm();
   render();
-  showToast("Compra registrada e estoque atualizado.");
+  showToast(oldPurchase ? "Compra atualizada e estoque recalculado." : "Compra registrada como novo lote e estoque atualizado.");
 }
 
+function editPurchase(id) {
+  const purchase = state.purchases.find(item => item.id === id);
+  if (!purchase) return;
+  els.editingPurchaseId.value = purchase.id;
+  els.purchaseProduct.value = purchase.productId;
+  els.purchaseQuantity.value = purchase.quantity;
+  els.purchaseUnitCost.value = purchase.unitCost;
+  els.purchaseDate.value = purchase.date;
+  els.purchaseNote.value = purchase.note || "";
+  els.purchaseSubmitBtn.textContent = "Atualizar compra";
+  els.cancelEditPurchase.classList.remove("hidden");
+  updatePurchasePreview();
+  setScreen("purchases");
+}
+
+function deletePurchase(id) {
+  const purchase = state.purchases.find(item => item.id === id);
+  if (!purchase) return;
+  if (!confirm("Excluir esta compra e retirar essa reposição do estoque?")) return;
+  const product = getProduct(purchase.productId);
+  if (!product) return showToast("Produto da compra não encontrado.");
+  const snapshot = JSON.stringify(product);
+  const result = logic.removePurchaseFromInventory(product, purchase);
+  if (!result.ok) {
+    Object.assign(product, JSON.parse(snapshot));
+    return showToast(result.reason || "Não consegui excluir esta compra.");
+  }
+  state.purchases = state.purchases.filter(item => item.id !== id);
+  if (els.editingPurchaseId.value === id) resetPurchaseForm();
+  render();
+  showToast("Compra excluída e estoque ajustado.");
+}
 
 function editSale(id) {
   const sale = state.sales.find(item => item.id === id);
@@ -1266,6 +1351,7 @@ function markPaid(id) {
   if (!sale) return;
   sale.status = "paid-later";
   sale.paidDate = todayISO();
+  sale.updatedAt = new Date().toISOString();
   render();
   showToast("Pagamento marcado como recebido.");
 }
@@ -1535,6 +1621,13 @@ els.purchaseProduct.addEventListener("change", () => {
 });
 els.purchaseQuantity.addEventListener("input", updatePurchasePreview);
 els.purchaseUnitCost.addEventListener("input", updatePurchasePreview);
+els.cancelEditPurchase.addEventListener("click", resetPurchaseForm);
+els.purchasesTable.addEventListener("click", event => {
+  const editId = event.target.dataset.editPurchase;
+  const deleteId = event.target.dataset.deletePurchase;
+  if (editId) editPurchase(editId);
+  if (deleteId) deletePurchase(deleteId);
+});
 els.stockCheckForm.addEventListener("submit", handleStockCheckSubmit);
 els.stockCheckTable.addEventListener("input", event => { if (event.target.dataset.stockCount) refreshStockCheckDiffs(); });
 els.reportFilter.addEventListener("change", renderReports);
@@ -1602,6 +1695,12 @@ if (sessionStorage.getItem(SESSION_KEY) === "sim") {
 } else {
   showLogin();
 }
+
+
+
+
+
+
 
 
 

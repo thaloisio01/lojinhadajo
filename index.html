@@ -191,27 +191,27 @@
             <option value="Insumos / Materiais">Insumos / Materiais</option>
             <option value="Outros">Outros</option>
           </select></label>
-          <label>Preço que pagou<input id="productCost" type="number" min="0" step="0.01" placeholder="0,00" required></label>
+          <label>Custo inicial / ajuste<input id="productCost" type="number" min="0" step="0.01" placeholder="0,00" required></label>
           <label>Preço de venda<input id="productPrice" type="number" min="0" step="0.01" placeholder="0,00" required></label>
           <label>Quantidade em estoque<input id="productStock" type="number" min="0" step="1" placeholder="0" required></label>
           <label>Avisar quando chegar em<input id="productMinStock" type="number" min="0" step="1" value="3" required></label>
           <div class="form-actions"><button class="primary" type="submit">Salvar produto</button><button id="cancelEditProduct" class="secondary hidden" type="button">Cancelar edição</button></div>
         </form>
-        <section class="panel"><h3>Lista de produtos</h3><div class="table-wrap"><table><thead><tr><th>Produto</th><th>Categoria</th><th>Pago</th><th>Venda</th><th>Lucro un.</th><th>Lucro %</th><th>Estoque</th><th></th></tr></thead><tbody id="productsTable"></tbody></table></div></section>
+        <section class="panel"><h3>Lista de produtos</h3><div class="table-wrap"><table><thead><tr><th>Produto</th><th>Categoria</th><th>Custo médio</th><th>Venda</th><th>Lucro un.</th><th>Lucro %</th><th>Estoque</th><th></th></tr></thead><tbody id="productsTable"></tbody></table></div></section>
       </section>
 
       <section id="purchases" class="screen" aria-labelledby="purchasesTitle">
         <div class="section-heading"><h2 id="purchasesTitle">Compras e reposição</h2></div>
-        <form id="purchaseForm" class="panel form-grid">
+        <form id="purchaseForm" class="panel form-grid"><input id="editingPurchaseId" type="hidden">
           <label>Produto comprado<select id="purchaseProduct" required></select></label>
           <label>Quantidade comprada<input id="purchaseQuantity" type="number" min="1" step="1" value="1" required></label>
           <label>Valor pago por unidade<input id="purchaseUnitCost" type="number" min="0" step="0.01" placeholder="0,00" required></label>
           <label>Data da compra<input id="purchaseDate" type="date" required></label>
           <label>Mercado/observação<input id="purchaseNote" type="text" placeholder="Ex.: mercado, promoção"></label>
           <div class="form-total"><span>Total da compra</span><strong id="purchasePreview">R$ 0,00</strong></div>
-          <button class="primary" type="submit">Salvar compra</button>
+          <div class="form-actions"><button id="purchaseSubmitBtn" class="primary" type="submit">Salvar compra</button><button id="cancelEditPurchase" class="secondary hidden" type="button">Cancelar edição</button></div>
         </form>
-        <section class="panel"><h3>Últimas compras</h3><div class="table-wrap"><table><thead><tr><th>Data</th><th>Produto</th><th>Categoria</th><th>Qtd.</th><th>Pago un.</th><th>Total</th><th>Obs.</th></tr></thead><tbody id="purchasesTable"></tbody></table></div></section>
+        <section class="panel"><h3>Últimas compras</h3><div class="table-wrap"><table><thead><tr><th>Data</th><th>Produto</th><th>Categoria</th><th>Qtd.</th><th>Pago un.</th><th>Total</th><th>Obs.</th><th></th></tr></thead><tbody id="purchasesTable"></tbody></table></div></section>
       </section>
 
       <section id="closing" class="screen" aria-labelledby="closingTitle">
@@ -297,6 +297,9 @@
   <script src="app.js"></script>
 </body>
 </html>
+
+
+
 
 
 
