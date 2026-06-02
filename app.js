@@ -163,9 +163,6 @@ const els = {
   reportEndWrap: document.getElementById("reportEndWrap"),
   reportPeriodLabel: document.getElementById("reportPeriodLabel"),
   monthComparisonText: document.getElementById("monthComparisonText"),
-  profitGoalCat: document.getElementById("profitGoalCat"),
-  profitGoalText: document.getElementById("profitGoalText"),
-  profitGoalBar: document.getElementById("profitGoalBar"),
   salesByDayChart: document.getElementById("salesByDayChart"),
   profitByMonthChart: document.getElementById("profitByMonthChart"),
   topProductsRanking: document.getElementById("topProductsRanking"),
@@ -965,41 +962,6 @@ function renderReportVisuals(filteredSales, range) {
   renderRankList(els.idleProductsRanking, idleRows, "Nenhum produto parado com estoque neste período.");
 }
 
-function goalCatSvg(stage, percent) {
-  const moods = {
-    sad: { eye: "M78 86q5-5 10 0", mouth: "M88 123q22-16 44 0", cheek: "#f1b6b1", extra: "<path d='M63 98q-8 12 0 20q8-8 0-20Z' fill='#8dc5ec'/>" },
-    calm: { eye: "M78 84q5 3 10 0", mouth: "M92 119q18-5 36 0", cheek: "#f3b8ad", extra: "" },
-    hopeful: { eye: "M78 82q5 5 10 0", mouth: "M90 117q20 10 40 0", cheek: "#f7b0a8", extra: "<circle cx='144' cy='56' r='4' fill='#d8a526'/>" },
-    happy: { eye: "M76 82q6 8 12 0", mouth: "M88 116q22 18 44 0", cheek: "#f5a49f", extra: "<path d='M145 52l4 8 8 1-6 6 2 9-8-4-8 4 2-9-6-6 8-1Z' fill='#d8a526'/>" },
-    super: { eye: "M76 82q6 8 12 0", mouth: "M84 113q26 27 52 0", cheek: "#ef9b98", extra: "<path d='M48 55l5 10 11 1-8 7 2 11-10-5-10 5 2-11-8-7 11-1Z' fill='#d8a526'/><path d='M146 50l5 10 11 1-8 7 2 11-10-5-10 5 2-11-8-7 11-1Z' fill='#d8a526'/>" }
-  };
-  const mood = moods[stage] || moods.sad;
-  const safePercent = Math.round(percent || 0);
-  return `
-    <svg class="cat-svg" viewBox="0 0 200 190" role="img" aria-label="Gatinho da meta com ${safePercent}% da meta">
-      <path d="M58 72 48 24l39 30M142 72l10-48-39 30" fill="#f3c99a" stroke="#5b2a22" stroke-width="6" stroke-linejoin="round"/>
-      <circle cx="100" cy="99" r="66" fill="#f6d5aa" stroke="#5b2a22" stroke-width="6"/>
-      <path d="M73 44q27-22 54 0" fill="none" stroke="#e4a66d" stroke-width="7" stroke-linecap="round"/>
-      <path d="${mood.eye}" fill="none" stroke="#3b1d1a" stroke-width="6" stroke-linecap="round"/>
-      <path d="M122 86q5-5 10 0" fill="none" stroke="#3b1d1a" stroke-width="6" stroke-linecap="round"/>
-      <circle cx="69" cy="104" r="10" fill="${mood.cheek}" opacity="0.8"/>
-      <circle cx="131" cy="104" r="10" fill="${mood.cheek}" opacity="0.8"/>
-      <path d="M100 96l-9 9h18Z" fill="#7d3f35"/>
-      <path d="${mood.mouth}" fill="none" stroke="#7d3f35" stroke-width="6" stroke-linecap="round"/>
-      <path d="M36 96H6M38 113H12M164 96h30M162 113h26" stroke="#5b2a22" stroke-width="5" stroke-linecap="round"/>
-      ${mood.extra}
-    </svg>`;
-}
-
-function renderProfitGoal() {
-  if (!els.profitGoalCat || !els.profitGoalText || !els.profitGoalBar) return;
-  const goal = logic.profitGoalProgress(state.sales, todayISO(), 500);
-  els.profitGoalCat.innerHTML = goalCatSvg(goal.stage, goal.percent);
-  els.profitGoalBar.style.width = `${Math.max(3, Math.min(goal.percent, 100))}%`;
-  const period = `${formatDate(goal.start)} a ${formatDate(goal.end)}`;
-  const remainingText = goal.remaining > 0 ? `Faltam ${money(goal.remaining)} para bater a meta.` : "Meta batida. Gatinho super feliz!";
-  els.profitGoalText.innerHTML = `Período: <strong>${period}</strong><br>Meta do lucro: <strong>${money(goal.goal)}</strong> · Lucro atual: <strong>${money(goal.profit)}</strong> · ${formatPercent(goal.percent)}<br>${remainingText}`;
-}
 function renderReports() {
   const range = getReportRange();
   const isCustom = els.reportFilter.value === "custom";
@@ -1007,7 +969,6 @@ function renderReports() {
   els.reportEndWrap.classList.toggle("hidden", !isCustom);
   els.reportPeriodLabel.textContent = range.label;
   renderMonthComparison(range);
-  renderProfitGoal();
 
   const filteredSales = state.sales.filter(sale => inRangeByDate(sale, range));
   const allRevenue = sum(filteredSales, sale => saleTotals(sale).revenue);
