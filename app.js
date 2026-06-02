@@ -113,6 +113,13 @@ const els = {
   purchaseDate: document.getElementById("purchaseDate"),
   purchaseNote: document.getElementById("purchaseNote"),
   purchasePreview: document.getElementById("purchasePreview"),
+  purchaseSummaryDate: document.getElementById("purchaseSummaryDate"),
+  purchaseTodayTotal: document.getElementById("purchaseTodayTotal"),
+  purchaseDayLabel: document.getElementById("purchaseDayLabel"),
+  purchaseDayTotal: document.getElementById("purchaseDayTotal"),
+  purchaseDayMerchandise: document.getElementById("purchaseDayMerchandise"),
+  purchaseDaySupplies: document.getElementById("purchaseDaySupplies"),
+  purchaseDayDetail: document.getElementById("purchaseDayDetail"),
   purchasesTable: document.getElementById("purchasesTable"),
   closingMode: document.getElementById("closingMode"),
   closingDate: document.getElementById("closingDate"),
@@ -336,6 +343,7 @@ function renderDates() {
   els.todayLabel.textContent = `Hoje: ${formatDate(todayISO())}`;
   if (!els.saleDate.value) els.saleDate.value = todayISO();
   if (!els.purchaseDate.value) els.purchaseDate.value = todayISO();
+  if (els.purchaseSummaryDate && !els.purchaseSummaryDate.value) els.purchaseSummaryDate.value = todayISO();
   if (els.stockCheckDate && !els.stockCheckDate.value) els.stockCheckDate.value = todayISO();
   if (els.closingDate && !els.closingDate.value) els.closingDate.value = todayISO();
   if (els.closingMonth && !els.closingMonth.value) els.closingMonth.value = todayISO().slice(0, 7);
@@ -395,7 +403,23 @@ function renderProducts() {
   }).join("");
 }
 
+function renderPurchaseDaySummary() {
+  if (!els.purchaseTodayTotal || !els.purchaseSummaryDate) return;
+  const today = todayISO();
+  const selectedDate = els.purchaseSummaryDate.value || today;
+  const todaySummary = logic.purchaseDaySummary(state.purchases, state.products, today);
+  const selectedSummary = logic.purchaseDaySummary(state.purchases, state.products, selectedDate);
+  els.purchaseTodayTotal.textContent = money(todaySummary.total);
+  els.purchaseDayLabel.textContent = selectedDate === today ? "Gasto hoje" : `Gasto em ${formatDate(selectedDate)}`;
+  els.purchaseDayTotal.textContent = money(selectedSummary.total);
+  els.purchaseDayMerchandise.textContent = money(selectedSummary.merchandiseTotal);
+  els.purchaseDaySupplies.textContent = money(selectedSummary.suppliesTotal);
+  els.purchaseDayDetail.textContent = selectedSummary.count
+    ? `${selectedSummary.count} compra(s) em ${formatDate(selectedDate)}.`
+    : `Nenhuma compra em ${formatDate(selectedDate)}.`;
+}
 function renderPurchases() {
+  renderPurchaseDaySummary();
   const recent = [...state.purchases].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10);
   if (!recent.length) {
     els.purchasesTable.innerHTML = '<tr><td colspan="8">Nenhuma compra registrada ainda.</td></tr>';
@@ -1628,6 +1652,7 @@ els.purchaseProduct.addEventListener("change", () => {
 });
 els.purchaseQuantity.addEventListener("input", updatePurchasePreview);
 els.purchaseUnitCost.addEventListener("input", updatePurchasePreview);
+els.purchaseSummaryDate.addEventListener("input", renderPurchases);
 els.cancelEditPurchase.addEventListener("click", resetPurchaseForm);
 els.purchasesTable.addEventListener("click", event => {
   const editId = event.target.dataset.editPurchase;
@@ -1702,6 +1727,7 @@ if (sessionStorage.getItem(SESSION_KEY) === "sim") {
 } else {
   showLogin();
 }
+
 
 
 
