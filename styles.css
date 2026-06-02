@@ -218,6 +218,17 @@ input:focus, select:focus { outline: 3px solid rgba(127, 29, 29, 0.20); border-c
 .form-total { padding: 12px 14px; border: 1px dashed var(--brand); border-radius: 8px; background: var(--surface-soft); }
 .form-total span { display: block; color: var(--muted); font-size: 0.9rem; margin-bottom: 5px; }
 .form-total strong { font-size: 1.35rem; }
+.cart-add-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.button-icon {
+  display: inline-grid;
+  place-items: center;
+  line-height: 1;
+}
 .form-actions, .backup-actions, .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .toolbar { margin-bottom: 14px; }
 .period-label, .backup-status { margin: 12px 0 0; color: var(--muted); font-weight: 700; }
@@ -257,6 +268,28 @@ input:focus, select:focus { outline: 3px solid rgba(127, 29, 29, 0.20); border-c
   color: var(--muted);
   font-size: 0.9rem;
   font-weight: 700;
+}
+.inline-date {
+  min-width: 190px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.inline-date input {
+  margin-top: 6px;
+}
+
+.compact-metrics {
+  margin-bottom: 10px;
+}
+
+.compact-metrics .metric {
+  min-height: 104px;
+  padding: 14px;
+}
+
+.compact-metrics .metric strong {
+  font-size: clamp(1.1rem, 2.5vw, 1.45rem);
 }
 
 .highlight-grid, .official-grid {
@@ -388,7 +421,7 @@ table { width: 100%; border-collapse: collapse; min-width: 680px; }
 th, td { padding: 12px 10px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: middle; }
 th { color: var(--muted); font-size: 0.86rem; }
 td.actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.profit-percent { display: inline-flex; align-items: center; justify-content: center; min-width: 54px; padding: 7px 10px; border-radius: 999px; background: var(--brand-soft); color: var(--brand-dark); font-weight: 900; }
+.profit-percent { display: inline-flex; align-items: center; justify-content: center; min-width: 54px; padding: 7px 10px; border-radius: 999px; background: #dff3e4 !important; color: #1f6b3a !important; font-weight: 900; }
 .badge { display: inline-flex; align-items: center; border-radius: 999px; padding: 6px 10px; font-size: 0.84rem; font-weight: 700; }
 .badge.paid { background: #edf3ee; color: var(--sage); }
 .badge.pending { background: #fde8cf; color: #7a3b12; }
@@ -528,13 +561,30 @@ body[data-season="christmas"] .login-screen::before {
 .season-decor {
   position: relative;
   z-index: 1;
-  margin: 6px 0 4px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  background: #fff7f5;
-  color: var(--brand-dark);
-  font-weight: 800;
-  text-align: center;
+  margin: 6px 0 12px;
+  min-height: 34px;
+}
+
+body[data-season="june"] .season-decor::before,
+body[data-season="june"] .season-decor::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  height: 24px;
+  background: repeating-linear-gradient(135deg, #f5c542 0 16px, #2f9f64 16px 32px, #e75757 32px 48px, #2e86de 48px 64px);
+  clip-path: polygon(0 0, 100% 0, 100% 45%, 95% 100%, 90% 45%, 85% 100%, 80% 45%, 75% 100%, 70% 45%, 65% 100%, 60% 45%, 55% 100%, 50% 45%, 45% 100%, 40% 45%, 35% 100%, 30% 45%, 25% 100%, 20% 45%, 15% 100%, 10% 45%, 5% 100%, 0 45%);
+  filter: drop-shadow(0 4px 5px rgba(95, 20, 20, .16));
+}
+
+body[data-season="june"] .season-decor::before {
+  top: 0;
+}
+
+body[data-season="june"] .season-decor::after {
+  top: 14px;
+  transform: scaleX(.92);
+  opacity: .9;
 }
 
 .season-message {
@@ -583,3 +633,7 @@ body[data-season="birthday-day"] .season-message {
   color: var(--sage);
   font-weight: 900;
 }
+
+
+
+

@@ -151,7 +151,7 @@
           <label>Pagamento<select id="paymentStatus"><option value="paid-now">Pago na hora</option><option value="payday">Pagamento</option><option value="voucher-payday">Vale pagamento</option><option value="voucher">Vale</option></select></label>
           <label id="dueDateWrap">Data combinada<input id="dueDate" type="date"></label>
           <div class="form-total"><span>Total da venda</span><strong id="salePreview">R$ 0,00</strong><small id="quickSaleEstimateText"></small></div>
-          <div class="form-actions"><button id="addToCartBtn" class="secondary" type="button">Adicionar ao carrinho</button><button id="saleSubmitBtn" class="primary" type="submit">Salvar venda</button><button id="cancelEditSale" class="secondary hidden" type="button">Cancelar edição</button></div>
+          <div class="form-actions"><button id="addToCartBtn" class="secondary cart-add-button" type="button"><span class="button-icon" aria-hidden="true">&#128722;</span>Adicionar ao carrinho</button><button id="saleSubmitBtn" class="primary" type="submit">Salvar venda</button><button id="cancelEditSale" class="secondary hidden" type="button">Cancelar edição</button></div>
         </form>
         <section id="saleCartPanel" class="panel cart-panel hidden">
           <div class="panel-title-row">
@@ -211,6 +211,19 @@
           <div class="form-total"><span>Total da compra</span><strong id="purchasePreview">R$ 0,00</strong></div>
           <div class="form-actions"><button id="purchaseSubmitBtn" class="primary" type="submit">Salvar compra</button><button id="cancelEditPurchase" class="secondary hidden" type="button">Cancelar edição</button></div>
         </form>
+        <section class="panel purchase-day-panel">
+          <div class="panel-title-row">
+            <h3>Gastos de compras</h3>
+            <label class="inline-date">Ver dia<input id="purchaseSummaryDate" type="date"></label>
+          </div>
+          <div class="metrics compact-metrics">
+            <article class="metric"><i class="metric-icon">H</i><span>Gasto hoje</span><strong id="purchaseTodayTotal">R$ 0,00</strong></article>
+            <article class="metric"><i class="metric-icon">D</i><span id="purchaseDayLabel">Gasto no dia</span><strong id="purchaseDayTotal">R$ 0,00</strong></article>
+            <article class="metric"><i class="metric-icon">M</i><span>Mercadorias</span><strong id="purchaseDayMerchandise">R$ 0,00</strong></article>
+            <article class="metric"><i class="metric-icon">I</i><span>Insumos</span><strong id="purchaseDaySupplies">R$ 0,00</strong></article>
+          </div>
+          <p id="purchaseDayDetail" class="helper-text">Nenhuma compra nesse dia.</p>
+        </section>
         <section class="panel"><h3>Últimas compras</h3><div class="table-wrap"><table><thead><tr><th>Data</th><th>Produto</th><th>Categoria</th><th>Qtd.</th><th>Pago un.</th><th>Total</th><th>Obs.</th><th></th></tr></thead><tbody id="purchasesTable"></tbody></table></div></section>
       </section>
 
@@ -297,6 +310,9 @@
   <script src="app.js"></script>
 </body>
 </html>
+
+
+
 
 
 
