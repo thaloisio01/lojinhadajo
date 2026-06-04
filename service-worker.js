@@ -1,4 +1,4 @@
-const CACHE_NAME = "lojinha-da-jo-cache-v58";
+const CACHE_NAME = "lojinha-da-jo-cache-v59";
 const FILES = ["./", "./index.html", "./styles.css", "./app-logic.js", "./app.js", "./manifest.webmanifest", "./supabase-config.js", "./assets/logo-lojinha.png"];
 
 self.addEventListener("install", event => {

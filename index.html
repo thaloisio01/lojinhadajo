@@ -37,11 +37,18 @@
       </div>
       <div class="top-actions">
         <span id="syncStatus" class="sync-status">Modo local</span>
+        <button id="topBackupBtn" class="primary top-backup" type="button">Baixar backup agora</button>
         <button id="installBtn" class="icon-button hidden" type="button" title="Instalar aplicativo">Instalar</button>
         <button id="logoutBtn" class="icon-button" type="button" title="Sair do aplicativo">Sair</button>
       </div>
     </header>
     <div id="syncWarning" class="app-warning hidden"><strong>Atenção:</strong> este aparelho ainda não salvou online. Confira a internet, aguarde aparecer “Sincronizado” ou faça backup antes de continuar.</div>
+    <section class="sync-panel" aria-label="Estado da sincronização">
+      <div><span>Internet</span><strong id="internetStatus">Internet ok</strong></div>
+      <div><span>Nuvem</span><strong id="cloudStatus">Nuvem aguardando</strong></div>
+      <div><span>Última sincronização</span><strong id="lastSyncStatus">Ainda não sincronizou</strong></div>
+      <div><span>Backup</span><strong id="topBackupStatus">Último backup: nenhum</strong></div>
+    </section>
 
     <nav class="tabs" aria-label="Navegação principal">
       <button class="tab active" data-screen="dashboard" type="button"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10.5V20h14v-9.5"/><path d="M9 20v-6h6v6"/></svg></span>Resumo</button>
@@ -170,7 +177,7 @@
           <pre id="saleReceiptText" class="receipt-text"></pre>
           <button id="copyReceiptBtn" class="primary" type="button">Copiar resumo para WhatsApp</button>
         </section>
-        <section class="panel"><h3>Últimas vendas</h3><div class="table-wrap"><table><thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th>Categoria</th><th>Qtd.</th><th>Total</th><th>Pagamento</th><th></th></tr></thead><tbody id="recentSalesTable"></tbody></table></div></section>
+        <section class="panel"><div class="panel-title-row"><h3>Últimas vendas</h3><button id="deleteAllSales" class="secondary danger" type="button">Excluir tudo</button></div><div class="table-wrap"><table><thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th>Categoria</th><th>Qtd.</th><th>Total</th><th>Pagamento</th><th></th></tr></thead><tbody id="recentSalesTable"></tbody></table></div></section>
       </section>
 
       <section id="products" class="screen" aria-labelledby="productsTitle">
@@ -198,7 +205,7 @@
           <label>Avisar quando chegar em<input id="productMinStock" type="number" min="0" step="1" value="3" required></label>
           <div class="form-actions"><button class="primary" type="submit">Salvar produto</button><button id="cancelEditProduct" class="secondary hidden" type="button">Cancelar edição</button></div>
         </form>
-        <section class="panel"><h3>Lista de produtos</h3><div class="table-wrap"><table><thead><tr><th>Produto</th><th>Categoria</th><th>Custo médio</th><th>Venda</th><th>Lucro un.</th><th>Lucro %</th><th>Estoque</th><th></th></tr></thead><tbody id="productsTable"></tbody></table></div></section>
+        <section class="panel"><div class="panel-title-row"><h3>Lista de produtos</h3><button id="deleteAllProducts" class="secondary danger" type="button">Excluir tudo</button></div><div class="table-wrap"><table><thead><tr><th>Produto</th><th>Categoria</th><th>Custo médio</th><th>Venda</th><th>Lucro un.</th><th>Lucro %</th><th>Estoque</th><th></th></tr></thead><tbody id="productsTable"></tbody></table></div></section>
         <section id="productHistoryPanel" class="panel product-history-panel hidden"></section>
       </section>
 
@@ -226,7 +233,7 @@
           </div>
           <p id="purchaseDayDetail" class="helper-text">Nenhuma compra nesse dia.</p>
         </section>
-        <section class="panel"><h3>Últimas compras</h3><div class="table-wrap"><table><thead><tr><th>Data</th><th>Produto</th><th>Categoria</th><th>Qtd.</th><th>Pago un.</th><th>Total</th><th>Obs.</th><th></th></tr></thead><tbody id="purchasesTable"></tbody></table></div></section>
+        <section class="panel"><div class="panel-title-row"><h3>Últimas compras</h3><button id="deleteAllPurchases" class="secondary danger" type="button">Excluir tudo</button></div><div class="table-wrap"><table><thead><tr><th>Data</th><th>Produto</th><th>Categoria</th><th>Qtd.</th><th>Pago un.</th><th>Total</th><th>Obs.</th><th></th></tr></thead><tbody id="purchasesTable"></tbody></table></div></section>
       </section>
 
       <section id="closing" class="screen" aria-labelledby="closingTitle">
@@ -274,7 +281,7 @@
           <article class="metric"><i class="metric-icon">OK</i><span>Já recebidas</span><strong id="paidLaterCount">0</strong></article>
         </div>
         <section class="panel">
-          <div class="toolbar"><button id="showPending" class="secondary active-filter" type="button">Pendentes</button><button id="showPaidLater" class="secondary" type="button">Já recebidas</button></div>
+          <div class="toolbar"><button id="showPending" class="secondary active-filter" type="button">Pendentes</button><button id="showPaidLater" class="secondary" type="button">Já recebidas</button><button id="deleteAllDebts" class="secondary danger" type="button">Excluir tudo</button></div>
           <div id="debtCards" class="debt-grid"></div>
           <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Produto</th><th>Valor</th><th>Venda</th><th>Prazo</th><th></th></tr></thead><tbody id="debtsTable"></tbody></table></div>
         </section>
@@ -317,7 +324,8 @@
             <article class="report-box"><h4>Produtos parados no estoque</h4><div id="idleProductsRanking" class="rank-list"></div></article>
           </div>
         </section>
-        <section class="panel backup-panel featured-backup"><h3>Guardar os dados</h3><p id="backupStatus" class="backup-status">Último backup feito em: nenhum backup baixado ainda.</p><p id="autoBackupStatus" class="backup-status">Backup automático ainda não foi feito.</p><p id="backupReminder" class="backup-reminder hidden"></p><div class="backup-actions"><button id="exportJson" class="primary backup-now" type="button">Fazer backup agora</button><button id="exportCsv" class="secondary" type="button">Baixar planilha CSV</button><button id="exportExcel" class="secondary" type="button">Baixar Excel completo</button><label class="file-button">Importar backup<input id="importJson" type="file" accept="application/json"></label></div></section>
+        <section class="panel backup-panel featured-backup"><h3>Guardar os dados</h3><p id="backupStatus" class="backup-status">Último backup feito em: nenhum backup baixado ainda.</p><p id="autoBackupStatus" class="backup-status">Backup automático ainda não foi feito.</p><p id="cloudBackupStatus" class="backup-status">Backup na nuvem: aguardando sincronização.</p><p id="backupReminder" class="backup-reminder hidden"></p><div class="backup-actions"><button id="exportJson" class="primary backup-now" type="button">Fazer backup agora</button><button id="exportCsv" class="secondary" type="button">Baixar planilha CSV</button><button id="exportExcel" class="secondary" type="button">Baixar Excel completo</button><label class="file-button">Importar backup<input id="importJson" type="file" accept="application/json"></label></div></section>
+        <section class="panel trash-panel"><div class="panel-title-row"><div><h3>Lixeira de segurança</h3><span class="soft-label">Itens apagados ficam aqui para recuperar erro humano</span></div><button id="emptyTrash" class="secondary danger" type="button">Esvaziar lixeira</button></div><div id="trashList" class="list empty-state">Nenhum item apagado.</div></section>
       </section>
     </main>
   </div>

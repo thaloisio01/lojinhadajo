@@ -1,6 +1,6 @@
 ﻿-- Rode este SQL no Supabase: SQL Editor > New query > Run.
 -- Ele cria a tabela usada para sincronizar a Lojinha da Jô.
--- As permissões são para usuários autenticados, não para acesso anônimo.
+-- As permissões liberam somente a linha fixa da Lojinha para a chave pública do app.
 
 create table if not exists public.lojinha_state (
   id text primary key,
@@ -13,26 +13,29 @@ alter table public.lojinha_state enable row level security;
 drop policy if exists "Lojinha autenticada pode ler" on public.lojinha_state;
 drop policy if exists "Lojinha autenticada pode inserir" on public.lojinha_state;
 drop policy if exists "Lojinha autenticada pode atualizar" on public.lojinha_state;
+drop policy if exists "Lojinha app pode ler" on public.lojinha_state;
+drop policy if exists "Lojinha app pode inserir" on public.lojinha_state;
+drop policy if exists "Lojinha app pode atualizar" on public.lojinha_state;
 
-create policy "Lojinha autenticada pode ler"
+create policy "Lojinha app pode ler"
   on public.lojinha_state
   for select
-  to authenticated
+  to anon, authenticated
   using (id = 'lojinha-da-jo');
 
-create policy "Lojinha autenticada pode inserir"
+create policy "Lojinha app pode inserir"
   on public.lojinha_state
   for insert
-  to authenticated
+  to anon, authenticated
   with check (id = 'lojinha-da-jo');
 
-create policy "Lojinha autenticada pode atualizar"
+create policy "Lojinha app pode atualizar"
   on public.lojinha_state
   for update
-  to authenticated
+  to anon, authenticated
   using (id = 'lojinha-da-jo')
   with check (id = 'lojinha-da-jo');
 
 insert into public.lojinha_state (id, data)
-values ('lojinha-da-jo', '{"products":[],"sales":[],"purchases":[],"lastBackupAt":""}'::jsonb)
+values ('lojinha-da-jo', '{"products":[],"sales":[],"purchases":[],"trash":[],"lastBackupAt":""}'::jsonb)
 on conflict (id) do nothing;

@@ -763,6 +763,99 @@
       }));
   }
 
+  function stateLastModified(data) {
+    const dates = [];
+    [data?.products, data?.sales, data?.purchases, data?.trash].forEach(list => {
+      if (!Array.isArray(list)) return;
+      list.forEach(item => {
+        if (item?.updatedAt) dates.push(item.updatedAt);
+        if (item?.createdAt) dates.push(item.createdAt);
+        if (item?.deletedAt) dates.push(item.deletedAt);
+        if (item?.date) dates.push(item.date);
+      });
+    });
+    if (data?.lastBackupAt) dates.push(data.lastBackupAt);
+    return dates.reduce((latest, value) => {
+      const time = new Date(value).getTime();
+      return Number.isFinite(time) ? Math.max(latest, time) : latest;
+    }, 0);
+  }
+
+  function syncStatusInfo(message, online = true) {
+    const raw = String(message || "");
+    if (!online) {
+      return {
+        text: "Sem internet: não feche ainda",
+        level: "offline",
+        warning: "Sem internet: não feche ainda. Faça backup se precisar continuar usando."
+      };
+    }
+    if (/salvando/i.test(raw)) {
+      return {
+        text: "Salvando...",
+        level: "saving",
+        warning: "Salvando agora. Aguarde antes de fechar o app."
+      };
+    }
+    if (/erro|falhou|desligado|local|publique|login/i.test(raw)) {
+      return {
+        text: "Erro: faça backup antes de continuar",
+        level: "error",
+        warning: "Erro: faça backup antes de continuar. Confira a internet e não feche o app até resolver."
+      };
+    }
+    return {
+      text: "Sincronizado",
+      level: "ok",
+      warning: ""
+    };
+  }
+
+  function formatDateTimeBR(iso) {
+    if (!iso) return "";
+    const date = new Date(iso);
+    if (!Number.isFinite(date.getTime())) return "";
+    return `${date.toLocaleDateString("pt-BR")} às ${date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+  }
+
+  function cloudSyncPanel({ online = true, cloudReady = false, lastSyncAt = "" } = {}) {
+    return {
+      internet: online ? "Internet ok" : "Sem internet",
+      cloud: cloudReady ? "Nuvem ok" : "Nuvem aguardando",
+      lastSync: lastSyncAt ? `Última sincronização: ${formatDateTimeBR(lastSyncAt)}` : "Última sincronização: ainda não sincronizou"
+    };
+  }
+
+  function cloudSyncMode(config, protocol = "https:") {
+    const url = String(config?.url || "");
+    const anonKey = String(config?.anonKey || "");
+    if (!url || !anonKey || url.includes("COLOQUE") || anonKey.includes("COLOQUE")) return "local";
+    if (protocol === "file:") return "publish";
+    return "direct";
+  }
+
+  function bulkDeleteSummary(data = {}) {
+    return {
+      products: Array.isArray(data.products) ? data.products.length : 0,
+      sales: Array.isArray(data.sales) ? data.sales.length : 0,
+      purchases: Array.isArray(data.purchases) ? data.purchases.length : 0
+    };
+  }
+
+  function shouldProtectAgainstCloudConflict(localData, incomingData, toleranceMs = 1000) {
+    return stateLastModified(localData) > stateLastModified(incomingData) + toleranceMs;
+  }
+
+  function createTrashEntry(type, item, reason, nowIso) {
+    return {
+      id: `trash-${type}-${item?.id || Date.now()}`,
+      type,
+      reason: reason || "Item apagado",
+      deletedAt: nowIso || new Date().toISOString(),
+      item: JSON.parse(JSON.stringify(item || {}))
+    };
+  }
+
   function backupReminder(lastBackupAt, nowIso, thresholdDays = 7) {
     if (!lastBackupAt) {
       return {
@@ -782,7 +875,7 @@
       message: shouldWarn ? `Faz ${daysSinceBackup} dias que o backup não é baixado. Faça um backup agora para guardar os dados.` : ""
     };
   }
-  return { saleTotals, saleDisplayRows, productHistory, normalizeProductName, sortProductsByName, filterProducts, filterProductsByCategory, filterSellableProducts, isSupplyProduct, purchaseBreakdown, purchaseDaySummary, cartTotals, quickSaleEstimate, stockConferencePlan, hasDuplicateProductName, profitPercent, profitGoalProgress, monthStats, monthComparison, monthHighlights, customerRankings, closingStats, closingConference, closingWhatsAppText, backupReminder, monthlyClosingStats, monthlyBusinessSummary, seasonalThemeInfo, saleReceiptText, debtReminderText, addPurchaseToInventory, removePurchaseFromInventory, setProductStockWithAdjustment, ensureInventoryBatches, applySaleStockChange, shoppingList };
+  return { saleTotals, saleDisplayRows, productHistory, normalizeProductName, sortProductsByName, filterProducts, filterProductsByCategory, filterSellableProducts, isSupplyProduct, purchaseBreakdown, purchaseDaySummary, cartTotals, quickSaleEstimate, stockConferencePlan, hasDuplicateProductName, profitPercent, profitGoalProgress, monthStats, monthComparison, monthHighlights, customerRankings, closingStats, closingConference, closingWhatsAppText, backupReminder, cloudSyncPanel, cloudSyncMode, createTrashEntry, bulkDeleteSummary, monthlyClosingStats, monthlyBusinessSummary, seasonalThemeInfo, saleReceiptText, debtReminderText, addPurchaseToInventory, removePurchaseFromInventory, setProductStockWithAdjustment, ensureInventoryBatches, applySaleStockChange, shouldProtectAgainstCloudConflict, shoppingList, stateLastModified, syncStatusInfo };
 });
 
 

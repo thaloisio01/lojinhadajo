@@ -1,6 +1,7 @@
 const STORAGE_KEY = "lojinha-da-jo-v1";
 const SESSION_KEY = "lojinha-da-jo-logada";
 const AUTO_BACKUP_KEY = "lojinha-da-jo-auto-backup";
+const LAST_SYNC_KEY = "lojinha-da-jo-last-cloud-sync";
 const LOGIN_USER = "Joelma";
 const LOGIN_PASSWORD = "22111996";
 
@@ -14,6 +15,9 @@ let cloudReady = false;
 let cloudApplying = false;
 let cloudPushTimer = null;
 let lastCloudJson = "";
+let lastCloudSyncAt = loadLastCloudSyncAt();
+let cloudSaving = false;
+let cloudChannel = null;
 let officialMonthSummaryVisible = false;
 let lastSaleReceiptText = "";
 let lastClosingCopyText = "";
@@ -34,6 +38,10 @@ const els = {
   loginSeasonMessage: document.getElementById("loginSeasonMessage"),
   logoutBtn: document.getElementById("logoutBtn"),
   syncStatus: document.getElementById("syncStatus"),
+  internetStatus: document.getElementById("internetStatus"),
+  cloudStatus: document.getElementById("cloudStatus"),
+  lastSyncStatus: document.getElementById("lastSyncStatus"),
+  topBackupStatus: document.getElementById("topBackupStatus"),
   tabs: document.querySelectorAll(".tab"),
   screens: document.querySelectorAll(".screen"),
   todayLabel: document.getElementById("todayLabel"),
@@ -70,6 +78,7 @@ const els = {
   productMinStock: document.getElementById("productMinStock"),
   cancelEditProduct: document.getElementById("cancelEditProduct"),
   productsTable: document.getElementById("productsTable"),
+  deleteAllProducts: document.getElementById("deleteAllProducts"),
   productHistoryPanel: document.getElementById("productHistoryPanel"),
   saleForm: document.getElementById("saleForm"),
   editingSaleId: document.getElementById("editingSaleId"),
@@ -107,6 +116,7 @@ const els = {
   cartTotal: document.getElementById("cartTotal"),
   clearCartBtn: document.getElementById("clearCartBtn"),
   recentSalesTable: document.getElementById("recentSalesTable"),
+  deleteAllSales: document.getElementById("deleteAllSales"),
   purchaseForm: document.getElementById("purchaseForm"),
   editingPurchaseId: document.getElementById("editingPurchaseId"),
   purchaseSubmitBtn: document.getElementById("purchaseSubmitBtn"),
@@ -125,6 +135,7 @@ const els = {
   purchaseDaySupplies: document.getElementById("purchaseDaySupplies"),
   purchaseDayDetail: document.getElementById("purchaseDayDetail"),
   purchasesTable: document.getElementById("purchasesTable"),
+  deleteAllPurchases: document.getElementById("deleteAllPurchases"),
   closingMode: document.getElementById("closingMode"),
   closingDate: document.getElementById("closingDate"),
   closingMonth: document.getElementById("closingMonth"),
@@ -156,6 +167,7 @@ const els = {
   paidLaterCount: document.getElementById("paidLaterCount"),
   showPending: document.getElementById("showPending"),
   showPaidLater: document.getElementById("showPaidLater"),
+  deleteAllDebts: document.getElementById("deleteAllDebts"),
   reportFilter: document.getElementById("reportFilter"),
   reportStart: document.getElementById("reportStart"),
   reportEnd: document.getElementById("reportEnd"),
@@ -176,18 +188,21 @@ const els = {
   exportExcel: document.getElementById("exportExcel"),
   exportJson: document.getElementById("exportJson"),
   importJson: document.getElementById("importJson"),
+  trashList: document.getElementById("trashList"),
+  emptyTrash: document.getElementById("emptyTrash"),
   installBtn: document.getElementById("installBtn"),
   toast: document.getElementById("toast")
 };
 
 function loadState() {
-  const fallback = { products: [], sales: [], purchases: [], lastBackupAt: "" };
+  const fallback = { products: [], sales: [], purchases: [], trash: [], lastBackupAt: "" };
   try {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY)) || fallback;
     return {
       products: Array.isArray(stored.products) ? stored.products : [],
       sales: Array.isArray(stored.sales) ? stored.sales : [],
       purchases: Array.isArray(stored.purchases) ? stored.purchases : [],
+      trash: Array.isArray(stored.trash) ? stored.trash : [],
       lastBackupAt: stored.lastBackupAt || ""
     };
   } catch (error) {
@@ -200,6 +215,14 @@ function automaticBackupSnapshot() {
     return JSON.parse(localStorage.getItem(AUTO_BACKUP_KEY) || "null");
   } catch (error) {
     return null;
+  }
+}
+
+function loadLastCloudSyncAt() {
+  try {
+    return localStorage.getItem(LAST_SYNC_KEY) || "";
+  } catch (error) {
+    return "";
   }
 }
 
@@ -291,6 +314,19 @@ function showToast(message) {
   showToast.timer = window.setTimeout(() => els.toast.classList.remove("show"), 2400);
 }
 
+function updateSyncPanel(message = els.syncStatus?.textContent || "Modo local") {
+  const panel = logic.cloudSyncPanel({
+    online: navigator.onLine,
+    cloudReady,
+    lastSyncAt: lastCloudSyncAt
+  });
+  if (els.internetStatus) els.internetStatus.textContent = panel.internet;
+  if (els.cloudStatus) els.cloudStatus.textContent = cloudSaving ? "Salvando..." : panel.cloud;
+  if (els.lastSyncStatus) els.lastSyncStatus.textContent = panel.lastSync.replace("Última sincronização: ", "");
+  if (els.topBackupStatus) els.topBackupStatus.textContent = state.lastBackupAt ? formatDateTime(state.lastBackupAt).replace("Último backup feito em: ", "") : "Último backup: nenhum";
+  if (els.syncStatus) els.syncStatus.dataset.state = logic.syncStatusInfo(message, navigator.onLine).level;
+}
+
 function showApp() {
   els.loginScreen.classList.add("hidden");
   els.appShell.classList.remove("hidden");
@@ -360,8 +396,10 @@ function render() {
   renderStockConference();
   renderDashboard();
   renderReports();
+  renderTrash();
   updateSalePreview();
   updatePurchasePreview();
+  updateSyncPanel();
 }
 
 function renderDates() {
@@ -427,6 +465,52 @@ function renderProducts() {
         </td>
       </tr>`;
   }).join("");
+}
+
+function trashLabel(entry) {
+  const labels = {
+    product: "Produto",
+    sale: "Venda",
+    purchase: "Compra",
+    debt: "Conta a receber"
+  };
+  return labels[entry.type] || "Item";
+}
+
+function renderTrash() {
+  if (!els.trashList) return;
+  const trash = Array.isArray(state.trash) ? [...state.trash] : [];
+  if (!trash.length) {
+    els.trashList.classList.add("empty-state");
+    els.trashList.innerHTML = "Nenhum item apagado.";
+    return;
+  }
+  els.trashList.classList.remove("empty-state");
+  els.trashList.innerHTML = trash
+    .sort((a, b) => String(b.deletedAt || "").localeCompare(String(a.deletedAt || "")))
+    .slice(0, 30)
+    .map(entry => {
+      const item = entry.item || {};
+      const name = item.name || item.productName || item.customer || item.productSnapshot?.name || item.id || "Item apagado";
+      return `<div class="list-row">
+        <span><strong>${escapeHTML(trashLabel(entry))}: ${escapeHTML(name)}</strong><small>${escapeHTML(entry.reason || "Apagado")} - ${formatDate(entry.deletedAt)}</small></span>
+      </div>`;
+    }).join("");
+}
+
+function addTrashEntry(type, item, reason) {
+  if (!Array.isArray(state.trash)) state.trash = [];
+  state.trash.unshift(logic.createTrashEntry(type, item, reason, new Date().toISOString()));
+  state.trash = state.trash.slice(0, 300);
+}
+
+function confirmDangerousBulkDelete(label, count) {
+  if (!count) {
+    showToast(`Nada para excluir em ${label}.`);
+    return false;
+  }
+  const answer = prompt(`Esta ação vai excluir ${count} registro(s) de ${label}. Digite EXCLUIR para confirmar.`);
+  return answer === "EXCLUIR";
 }
 
 function renderProductHistory(productId) {
@@ -1453,6 +1537,7 @@ function deletePurchase(id) {
     Object.assign(product, JSON.parse(snapshot));
     return showToast(result.reason || "Não consegui excluir esta compra.");
   }
+  addTrashEntry("purchase", purchase, "Compra excluida");
   state.purchases = state.purchases.filter(item => item.id !== id);
   if (els.editingPurchaseId.value === id) resetPurchaseForm();
   render();
@@ -1484,12 +1569,36 @@ function editSale(id) {
   setScreen("sale");
 }
 
+function deleteAllPurchases() {
+  if (!confirmDangerousBulkDelete("compras", state.purchases.length)) return;
+  const productsSnapshot = JSON.stringify(state.products);
+  const purchasesSnapshot = [...state.purchases];
+  for (const purchase of purchasesSnapshot) {
+    const product = getProduct(purchase.productId);
+    if (!product) {
+      state.products = JSON.parse(productsSnapshot);
+      return showToast("Produto de uma compra nao foi encontrado. Nada foi excluido.");
+    }
+    const result = logic.removePurchaseFromInventory(product, purchase);
+    if (!result.ok) {
+      state.products = JSON.parse(productsSnapshot);
+      return showToast(result.reason || "Nao consegui excluir todas as compras.");
+    }
+  }
+  purchasesSnapshot.forEach(purchase => addTrashEntry("purchase", purchase, "Exclusao de todas as compras"));
+  state.purchases = [];
+  resetPurchaseForm();
+  render();
+  showToast("Todas as compras foram excluidas e o estoque foi ajustado.");
+}
+
 function deleteSale(id) {
   const sale = state.sales.find(item => item.id === id);
   if (!sale) return;
   const message = sale.quickSale || !sale.productId ? "Excluir esta venda por valor?" : "Excluir esta venda e devolver o produto ao estoque?";
   if (!confirm(message)) return;
   logic.applySaleStockChange(state.products, sale, null);
+  addTrashEntry("sale", sale, "Venda excluida");
   state.sales = state.sales.filter(item => item.id !== id);
   if (els.editingSaleId.value === id) resetSaleForm();
   render();
@@ -1501,6 +1610,7 @@ function deleteSaleGroup(groupId) {
   if (!sales.length) return;
   if (!confirm("Excluir este carrinho e devolver todos os produtos ao estoque?")) return;
   sales.forEach(sale => logic.applySaleStockChange(state.products, sale, null));
+  sales.forEach(sale => addTrashEntry("sale", sale, "Carrinho excluido"));
   state.sales = state.sales.filter(item => item.saleGroupId !== groupId);
   if (sales.some(sale => els.editingSaleId.value === sale.id)) resetSaleForm();
   render();
@@ -1520,14 +1630,57 @@ function editProduct(id) {
   setScreen("products");
 }
 
+function deleteAllSales() {
+  if (!confirmDangerousBulkDelete("vendas", state.sales.length)) return;
+  const salesSnapshot = [...state.sales];
+  salesSnapshot.forEach(sale => logic.applySaleStockChange(state.products, sale, null));
+  salesSnapshot.forEach(sale => addTrashEntry("sale", sale, "Exclusao de todas as vendas"));
+  state.sales = [];
+  resetSaleForm();
+  render();
+  showToast("Todas as vendas foram excluidas e o estoque foi devolvido.");
+}
+
 function deleteProduct(id) {
   const hasSales = state.sales.some(sale => sale.productId === id);
   const hasPurchases = state.purchases.some(purchase => purchase.productId === id);
   if (hasSales || hasPurchases) return showToast("Esse produto tem histórico. Edite o estoque em vez de excluir.");
   if (!confirm("Excluir este produto?")) return;
+  const removedProduct = getProduct(id);
+  if (removedProduct) addTrashEntry("product", removedProduct, "Produto excluido");
   state.products = state.products.filter(product => product.id !== id);
   render();
   showToast("Produto excluído.");
+}
+
+function deleteAllProducts() {
+  if (!confirmDangerousBulkDelete("produtos", state.products.length)) return;
+  state.products.forEach(product => addTrashEntry("product", product, "Exclusao de todos os produtos"));
+  state.products = [];
+  renderProductHistory("");
+  render();
+  showToast("Todos os produtos foram excluidos.");
+}
+
+function deleteAllDebts() {
+  const debts = state.sales.filter(sale => debtView === "pending" ? sale.status === "pending" : sale.status === "paid-later");
+  const label = debtView === "pending" ? "contas pendentes" : "contas ja recebidas";
+  if (!confirmDangerousBulkDelete(label, debts.length)) return;
+  debts.forEach(sale => {
+    logic.applySaleStockChange(state.products, sale, null);
+    addTrashEntry("debt", sale, `Exclusao de ${label}`);
+  });
+  const ids = new Set(debts.map(sale => sale.id));
+  state.sales = state.sales.filter(sale => !ids.has(sale.id));
+  render();
+  showToast("Registros excluidos e estoque devolvido.");
+}
+
+function emptyTrash() {
+  if (!confirmDangerousBulkDelete("lixeira", state.trash.length)) return;
+  state.trash = [];
+  render();
+  showToast("Lixeira esvaziada.");
 }
 
 function markPaid(id) {
@@ -1671,6 +1824,7 @@ function importJson(event) {
       state.products = data.products;
       state.sales = data.sales;
       state.purchases = Array.isArray(data.purchases) ? data.purchases : [];
+      state.trash = Array.isArray(data.trash) ? data.trash : [];
       state.lastBackupAt = data.lastBackupAt || new Date().toISOString();
       render();
       showToast("Backup importado.");
@@ -1713,7 +1867,8 @@ function hasLocalBusinessData(data) {
   return Boolean(
     (Array.isArray(data.products) && data.products.length) ||
     (Array.isArray(data.sales) && data.sales.length) ||
-    (Array.isArray(data.purchases) && data.purchases.length)
+    (Array.isArray(data.purchases) && data.purchases.length) ||
+    (Array.isArray(data.trash) && data.trash.length)
   );
 }
 function sanitizedState() {
@@ -1721,13 +1876,14 @@ function sanitizedState() {
     products: state.products,
     sales: state.sales,
     purchases: state.purchases,
+    trash: Array.isArray(state.trash) ? state.trash : [],
     lastBackupAt: state.lastBackupAt || ""
   };
 }
 
 function stateLastModified(data) {
   const dates = [];
-  [data?.products, data?.sales, data?.purchases].forEach(list => {
+  [data?.products, data?.sales, data?.purchases, data?.trash].forEach(list => {
     if (!Array.isArray(list)) return;
     list.forEach(item => {
       if (item?.updatedAt) dates.push(item.updatedAt);
@@ -1746,6 +1902,7 @@ function replaceState(nextState) {
   state.products = Array.isArray(nextState.products) ? nextState.products : [];
   state.sales = Array.isArray(nextState.sales) ? nextState.sales : [];
   state.purchases = Array.isArray(nextState.purchases) ? nextState.purchases : [];
+  state.trash = Array.isArray(nextState.trash) ? nextState.trash : [];
   state.lastBackupAt = nextState.lastBackupAt || "";
 }
 
@@ -1761,10 +1918,21 @@ function setSyncStatus(message) {
       ? `<strong>Atenção:</strong> este aparelho ainda não salvou online. Status: ${escapeHTML(message)}. Confira a internet, aguarde aparecer “Sincronizado” ou faça backup antes de continuar.`
       : "";
   }
+  updateSyncPanel(message);
+}
+
+function markCloudSynced() {
+  lastCloudSyncAt = new Date().toISOString();
+  try {
+    localStorage.setItem(LAST_SYNC_KEY, lastCloudSyncAt);
+  } catch (error) {
+    // O horario do sync e so informativo; nao deve impedir o salvamento.
+  }
+  updateSyncPanel("Sincronizado");
 }
 
 function hasSupabaseConfig(config) {
-  return Boolean(config && config.url && config.anonKey && !config.url.includes("COLOQUE") && !config.anonKey.includes("COLOQUE"));
+  return logic.cloudSyncMode(config, location.protocol) === "direct";
 }
 
 async function ensureCloudClient() {
@@ -1781,45 +1949,33 @@ async function ensureCloudClient() {
 
 async function signInSupabaseIfConfigured(password) {
   const config = window.LOJINHA_SUPABASE;
-  if (!hasSupabaseConfig(config) || location.protocol === "file:") return true;
+  if (!hasSupabaseConfig(config)) return true;
   try {
-    setSyncStatus("Entrando no sync...");
+    setSyncStatus("Conectando...");
     await ensureCloudClient();
-    const result = await cloudClient.auth.signInWithPassword({
-      email: config.authEmail,
-      password
-    });
-    if (result.error) throw result.error;
     return true;
   } catch (error) {
     console.error("Supabase login error", error);
     const message = readableError(error);
-    setSyncStatus(`Login falhou: ${message}`);
-    els.loginError.textContent = `Login correto, mas o Supabase recusou: ${message}`;
+    setSyncStatus(`Sync falhou: ${message}`);
+    els.loginError.textContent = `Login correto, mas a nuvem recusou: ${message}`;
     return false;
   }
 }
 async function initSupabaseSync() {
   const config = window.LOJINHA_SUPABASE;
-  if (!hasSupabaseConfig(config)) {
+  const mode = logic.cloudSyncMode(config, location.protocol);
+  if (mode === "local") {
     setSyncStatus("Modo local");
     return;
   }
-  if (location.protocol === "file:") {
+  if (mode === "publish") {
     setSyncStatus("Publique para sincronizar");
     return;
   }
   try {
     setSyncStatus("Conectando...");
     await ensureCloudClient();
-    const sessionResult = await cloudClient.auth.getSession();
-    if (!sessionResult.data.session) {
-      sessionStorage.removeItem(SESSION_KEY);
-      showLogin();
-      setSyncStatus("Faça login para sincronizar");
-      return;
-    }
-
     const result = await cloudClient.from(cloudTable).select("data").eq("id", cloudRowId).maybeSingle();
     if (result.error) throw result.error;
 
@@ -1832,6 +1988,7 @@ async function initSupabaseSync() {
         cloudApplying = true;
         replaceState(cloudData);
         lastCloudJson = JSON.stringify(sanitizedState());
+        markCloudSynced();
         render();
         cloudApplying = false;
       }
@@ -1839,6 +1996,7 @@ async function initSupabaseSync() {
       cloudApplying = true;
       replaceState(cloudData);
       lastCloudJson = JSON.stringify(sanitizedState());
+      markCloudSynced();
       render();
       cloudApplying = false;
     } else if (hasLocalBusinessData(localData)) {
@@ -1847,6 +2005,7 @@ async function initSupabaseSync() {
       cloudApplying = true;
       replaceState(cloudData);
       lastCloudJson = JSON.stringify(sanitizedState());
+      markCloudSynced();
       render();
       cloudApplying = false;
     } else {
@@ -1855,7 +2014,15 @@ async function initSupabaseSync() {
 
     cloudReady = true;
     setSyncStatus("Sincronizado");
-    cloudClient
+    if (cloudChannel) {
+      try {
+        await cloudClient.removeChannel(cloudChannel);
+      } catch (error) {
+        console.warn("Supabase channel cleanup error", error);
+      }
+      cloudChannel = null;
+    }
+    cloudChannel = cloudClient
       .channel("lojinha-da-jo-sync")
       .on("postgres_changes", { event: "*", schema: "public", table: cloudTable, filter: `id=eq.${cloudRowId}` }, payload => {
         if (!payload.new?.data) return;
@@ -1869,6 +2036,7 @@ async function initSupabaseSync() {
         cloudApplying = true;
         replaceState(incomingData);
         lastCloudJson = incomingJson;
+        markCloudSynced();
         render();
         cloudApplying = false;
         setSyncStatus("Atualizado");
@@ -1893,10 +2061,13 @@ function scheduleCloudPush() {
 
 async function pushCloudState(force) {
   if (!cloudClient) return;
+  window.clearTimeout(cloudPushTimer);
+  cloudPushTimer = null;
   const data = sanitizedState();
   const json = JSON.stringify(data);
   if (!force && json === lastCloudJson) return;
   try {
+    cloudSaving = true;
     setSyncStatus("Salvando...");
     const result = await cloudClient.from(cloudTable).upsert({
       id: cloudRowId,
@@ -1905,12 +2076,16 @@ async function pushCloudState(force) {
     });
     if (result.error) throw result.error;
     lastCloudJson = json;
+    markCloudSynced();
     setSyncStatus("Sincronizado");
   } catch (error) {
     console.error("Supabase save error", error);
     const message = readableError(error);
     setSyncStatus(`Erro no sync: ${message}`);
     showToast(`Não salvei na nuvem: ${message}`);
+  } finally {
+    cloudSaving = false;
+    updateSyncPanel();
   }
 }
 function escapeHTML(value) {
@@ -1922,9 +2097,29 @@ els.logoutBtn.addEventListener("click", () => {
   sessionStorage.removeItem(SESSION_KEY);
   showLogin();
 });
+window.addEventListener("online", () => {
+  setSyncStatus(cloudReady ? "Reconectando..." : "Internet voltou");
+  if (sessionStorage.getItem(SESSION_KEY) === "sim") initSupabaseSync();
+});
+window.addEventListener("offline", () => {
+  setSyncStatus("Sem internet");
+});
+window.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden" && cloudReady) pushCloudState(true);
+});
+window.addEventListener("beforeunload", event => {
+  if (!cloudSaving && !cloudPushTimer) return;
+  event.preventDefault();
+  event.returnValue = "";
+});
 els.tabs.forEach(tab => tab.addEventListener("click", () => setScreen(tab.dataset.screen)));
 els.productForm.addEventListener("submit", handleProductSubmit);
 els.saleForm.addEventListener("submit", handleSaleSubmit);
+if (els.deleteAllSales) els.deleteAllSales.addEventListener("click", deleteAllSales);
+if (els.deleteAllProducts) els.deleteAllProducts.addEventListener("click", deleteAllProducts);
+if (els.deleteAllPurchases) els.deleteAllPurchases.addEventListener("click", deleteAllPurchases);
+if (els.deleteAllDebts) els.deleteAllDebts.addEventListener("click", deleteAllDebts);
+if (els.emptyTrash) els.emptyTrash.addEventListener("click", emptyTrash);
 els.saleMode.addEventListener("change", () => { if (isQuickSaleMode() && saleCart.length) clearSaleCart(); updateSalePreview(); });
 els.quickSaleAmount.addEventListener("input", updateSalePreview);
 els.quickSaleNote.addEventListener("input", updateSalePreview);
